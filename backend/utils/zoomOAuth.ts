@@ -18,7 +18,7 @@ const ZOOM_API_BASE    = 'https://api.zoom.us/v2';
 
 const CLIENT_ID     = process.env.ZOOM_CLIENT_ID     ?? '';
 const CLIENT_SECRET = process.env.ZOOM_CLIENT_SECRET ?? '';
-const REDIRECT_URI  = process.env.ZOOM_REDIRECT_URI   ?? 'http://localhost:5173/api/zoom/callback';
+const REDIRECT_URI  = process.env.ZOOM_REDIRECT_URI   ?? 'http://localhost:6767/api/zoom/auth/callback';
 
 if (!CLIENT_ID || !CLIENT_SECRET) {
   throw new Error('Missing ZOOM_CLIENT_ID or ZOOM_CLIENT_SECRET env vars');
