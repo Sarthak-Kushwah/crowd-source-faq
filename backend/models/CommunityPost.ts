@@ -88,6 +88,7 @@ const commentSchema = new MongooseSchema(
 
 // ─── Enums ─────────────────────────────────────────────────────────────────────
 export type CommunityPostStatus = 'answered' | 'unanswered';
+export type EscalationStatus = 'none' | 'escalated' | 'resolved' | 'dismissed';
 
 // Interface for embedded comment subdocuments (used by buildCommentTree)
 export interface IComment {
@@ -117,6 +118,14 @@ export interface ICommunityPost extends Document {
   comments: Types.Subdocument[];
   reports: Array<{ reportedBy: Types.ObjectId; reason: string; createdAt?: Date }>;
   embedding?: number[];
+  // Escalation fields
+  escalationStatus: EscalationStatus;
+  escalatedAt: Date | null;
+  escalationReason: string | null;
+  escalatedBy: Types.ObjectId | null;
+  escalationResolvedAt: Date | null;
+  escalationResolvedBy: Types.ObjectId | null;
+  escalationOutcome: string | null;
 }
 
 // ─── Schema ─────────────────────────────────────────────────────────────────────
@@ -170,6 +179,40 @@ const communityPostSchema = new MongooseSchema(
     embedding: {
       type: [Number],
       default: undefined,
+    },
+    // ── Escalation tracking ─────────────────────────────────────────────────────
+    escalationStatus: {
+      type: String,
+      enum: ['none', 'escalated', 'resolved', 'dismissed'] as EscalationStatus[],
+      default: 'none',
+    },
+    escalatedAt: {
+      type: Date,
+      default: null,
+    },
+    escalationReason: {
+      type: String,
+      default: null,
+    },
+    escalatedBy: {
+      type: MongooseSchema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    // Resolved/dismissed: which admin acted and when
+    escalationResolvedAt: {
+      type: Date,
+      default: null,
+    },
+    escalationResolvedBy: {
+      type: MongooseSchema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    // Resolution outcome note (e.g. "answered in thread", "converted to FAQ #123")
+    escalationOutcome: {
+      type: String,
+      default: null,
     },
   },
   { timestamps: true }

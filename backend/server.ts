@@ -19,6 +19,7 @@ import reputationRoutes from './routes/reputation.js';
 import moderationRoutes from './routes/moderation.js';
 import zoomRoutes from './routes/zoom.js';
 import { logger } from './utils/logger.js';
+import { startEscalationScheduler, stopEscalationScheduler } from './controllers/escalationController.js';
 import * as Sentry from '@sentry/node';
 import { expressIntegration } from '@sentry/node';
 
@@ -246,8 +247,19 @@ if (process.env.NODE_ENV !== 'production') {
   validateEnv();
   app.listen(PORT, () => {
     logger.info(`Yaksha FAQ Portal backend running on port ${PORT}`);
+    startEscalationScheduler();
   });
 }
+
+// Graceful shutdown — flush pending work before exiting
+process.on('SIGTERM', () => {
+  stopEscalationScheduler();
+  process.exit(0);
+});
+process.on('SIGINT', () => {
+  stopEscalationScheduler();
+  process.exit(0);
+});
 
 // Export the app for testing or serverless handler wrapping
 export default app;

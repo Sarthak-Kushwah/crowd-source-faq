@@ -41,6 +41,9 @@ async function migrate() {
     { name: 'faqId+createdAt',            coll: 'yaksha_faq_fresh_review_logs',        key: { faqId: 1, createdAt: -1 } },
     { name: 'event+createdAt',            coll: 'yaksha_faq_fresh_review_logs',        key: { event: 1, createdAt: -1 } },
     { name: 'reviewStatus+flaggedAt',     coll: 'yaksha_faq_faqs',                     key: { reviewStatus: 1, flaggedAt: 1 } },
+    // Escalation system
+    { name: 'escalationStatus+createdAt', coll: 'yaksha_faq_communityposts',          key: { escalationStatus: 1, createdAt: -1 } },
+    { name: 'escalationStatus+escalatedAt', coll: 'yaksha_faq_communityposts',       key: { escalationStatus: 1, escalatedAt: -1 } },
   ];
 
   for (const idx of indexes) {

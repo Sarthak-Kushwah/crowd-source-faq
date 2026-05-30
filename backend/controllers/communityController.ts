@@ -342,6 +342,11 @@ export const resolvePost = async (req: Request, res: Response): Promise<void> =>
 
     post.status = 'answered';
     post.answer = answer.trim();
+    // Clear any pending escalation — answering resolves the issue
+    post.escalationStatus = 'none';
+    post.escalatedAt = null;
+    post.escalationReason = null;
+    post.escalatedBy = null;
     // Set answerIsExpert flag when a moderator or admin resolves the post
     if (req.user?.role === 'moderator' || req.user?.role === 'admin' || req.user?.role === 'expert') {
       post.answerIsExpert = true;

@@ -28,6 +28,12 @@ import {
   verifyEscalatedFAQ,
   dismissEscalatedFAQ,
 } from '../controllers/freshnessController';
+import {
+  getEscalatedPosts,
+  resolveEscalatedPost,
+  dismissEscalatedPost,
+  getEscalationHistory,
+} from '../controllers/escalationController.js';
 
 const router = Router();
 
@@ -53,6 +59,12 @@ router.patch('/search/unresolved/:id/resolve', resolveUnresolved);
 router.get('/escalated',                       getEscalated);
 router.post('/escalated/:id/verify',           verifyEscalatedFAQ);
 router.post('/escalated/:id/dismiss',          dismissEscalatedFAQ);
+
+// Escalated community post management
+router.get('/community/escalated-posts',        getEscalatedPosts);
+router.post('/community/escalated-posts/:id/resolve',  resolveEscalatedPost);
+router.post('/community/escalated-posts/:id/dismiss',  dismissEscalatedPost);
+router.get('/community/escalation-history',     getEscalationHistory);
 
 router.post('/faq', createFAQ);
 router.post('/faq/approve', approveFAQ);

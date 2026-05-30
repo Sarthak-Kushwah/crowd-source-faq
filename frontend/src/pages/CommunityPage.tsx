@@ -307,7 +307,7 @@ function PostDetailDialog({ post: initialPost, onClose, currentUserId, userRole 
               Comments ({post.comments?.length ?? 0})
             </h3>
 
-            {post.comments?.length === 0 ? (
+            {!post.comments || post.comments.length === 0 ? (
               <p className="text-sm text-ink-faint py-2">No comments yet. Be the first to comment!</p>
             ) : (
               <div className="space-y-3">
@@ -560,7 +560,7 @@ function CreatePostDialog({ onClose, onCreated }: CreatePostDialogProps) {
       setError('Both title and description are required.');
       return;
     }
-    if (duplicateMatch) {
+    if (duplicateMatch && duplicateMatch.isDuplicate) {
       setError('This question is already answered in our FAQ. Please check the FAQ page first.');
       return;
     }
@@ -579,7 +579,7 @@ function CreatePostDialog({ onClose, onCreated }: CreatePostDialogProps) {
     }
   };
 
-  const isSubmitDisabled = !title.trim() || !body.trim() || !!duplicateMatch || checkingDuplicates;
+  const isSubmitDisabled = !title.trim() || !body.trim() || (duplicateMatch && duplicateMatch.isDuplicate) || checkingDuplicates;
 
   return (
     <dialog
@@ -633,13 +633,13 @@ function CreatePostDialog({ onClose, onCreated }: CreatePostDialogProps) {
             </div>
           </div>
 
-          {duplicateMatch && (
+          {duplicateMatch && duplicateMatch.isDuplicate && duplicateMatch.matches.length > 0 && (
             <div className="faq-match-banner">
               <span>📖</span>
               <div>
                 <p className="font-medium">This question is already answered in our FAQ!</p>
                 <p className="text-xs mt-0.5 opacity-80">
-                  <strong>"{duplicateMatch.question}"</strong>
+                  <strong>"{duplicateMatch.matches[0]?.question || duplicateMatch.matches[0]?.title}"</strong>
                 </p>
                 <a href="/faq" className="text-xs mt-1 inline-block">→ Go to FAQ page</a>
               </div>
@@ -712,6 +712,24 @@ export default function CommunityPage() {
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
+  const fetchPosts = useCallback((pageNum = 1) => {
+    if (pageNum === 1) setLoading(true);
+    else setLoadingMore(true);
+    api.get('/community', { params: { page: pageNum, limit: 20 } })
+      .then((res) => {
+        const incoming = res.data.posts || [];
+        setPosts((prev) => pageNum === 1 ? incoming : [...prev, ...incoming]);
+        setTotal(res.data.total || 0);
+        setHasMore(res.data.hasMore ?? false);
+        setPage(pageNum);
+      })
+      .catch(() => setError('Failed to load posts. Please try again.'))
+      .finally(() => {
+        setLoading(false);
+        setLoadingMore(false);
+      });
+  }, []);
+
   // Thread detail: when a post ID is set, show ThreadDetail instead of the list/dialog
   const handleOpenThread = useCallback((postId: string) => {
     setSelectedPostId(postId);
@@ -762,24 +780,6 @@ export default function CommunityPage() {
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, [posts, user]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const fetchPosts = useCallback((pageNum = 1) => {
-    if (pageNum === 1) setLoading(true);
-    else setLoadingMore(true);
-    api.get('/community', { params: { page: pageNum, limit: 20 } })
-      .then((res) => {
-        const incoming = res.data.posts || [];
-        setPosts((prev) => pageNum === 1 ? incoming : [...prev, ...incoming]);
-        setTotal(res.data.total || 0);
-        setHasMore(res.data.hasMore ?? false);
-        setPage(pageNum);
-      })
-      .catch(() => setError('Failed to load posts. Please try again.'))
-      .finally(() => {
-        setLoading(false);
-        setLoadingMore(false);
-      });
-  }, []);
 
   useEffect(() => {
     fetchPosts(1);
@@ -999,7 +999,7 @@ export default function CommunityPage() {
                 key={post._id}
                 post={post}
                 onClick={(p) => handleOpenThread(p._id)}
-                currentUserId={user?._id || user?.id}
+                currentUserId={user?._id || (user?.id as string | undefined)}
               />
             ))}
           </div>
