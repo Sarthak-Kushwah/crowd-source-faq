@@ -2,14 +2,15 @@ import { Router } from 'express';
 import { login, register, getMe, getAllUsers, updateUserRole, deleteUser, updateProfile, changePassword, exportUserData, logout } from '../controllers/authController.js';
 import { protect, authorize } from '../middleware/auth.js';
 import { loginLimiter, registerLimiter, passwordChangeLimiter } from '../utils/rateLimit.js';
+import { validateBody, registerSchema, loginSchema, updateProfileSchema, changePasswordSchema } from '../utils/validation.js';
 
 const router = Router();
 
-// POST /api/auth/register (Public) — rate-limited
-router.post('/register', registerLimiter, register);
+// POST /api/auth/register (Public) — rate-limited, validated
+router.post('/register', registerLimiter, validateBody(registerSchema), register);
 
-// POST /api/auth/login (Public) — rate-limited
-router.post('/login', loginLimiter, login);
+// POST /api/auth/login (Public) — rate-limited, validated
+router.post('/login', loginLimiter, validateBody(loginSchema), login);
 
 // POST /api/auth/logout (Protected) — revokes the JWT carried by the request
 router.post('/logout', protect, logout);
@@ -24,10 +25,10 @@ router.get('/export', protect, exportUserData);
 
 // PATCH /api/auth/profile (Protected)
 // Updates the authenticated user's own name and/or email
-router.patch('/profile', protect, updateProfile);
+router.patch('/profile', protect, validateBody(updateProfileSchema), updateProfile);
 
-// PUT /api/auth/password (Protected) — rate-limited
-router.put('/password', protect, passwordChangeLimiter, changePassword);
+// PUT /api/auth/password (Protected) — rate-limited, validated
+router.put('/password', protect, passwordChangeLimiter, validateBody(changePasswordSchema), changePassword);
 
 // GET /api/auth/users (Protected: Admin only)
 router.get('/users', protect, authorize('admin'), getAllUsers);

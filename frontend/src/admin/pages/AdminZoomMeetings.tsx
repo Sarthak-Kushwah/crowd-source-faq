@@ -245,13 +245,10 @@ export default function AdminZoomMeetings() {
   ];
 
   return (
-    <AdminLayout>
+    <>
       <div className="space-y-5 max-w-5xl">
-        {/* Header */}
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">Zoom Meetings</h2>
-          <p className="text-sm text-gray-500 mt-0.5">AI-extracted FAQs and announcements from Zoom recordings</p>
-        </div>
+        {/* Sub-heading (page title is in the navbar — keep description only) */}
+        <p className="text-sm text-gray-500 -mt-2">AI-extracted FAQs and announcements from Zoom recordings</p>
 
         {/* Connection banner */}
         {zoomStatus && !zoomStatus.hasCredentials && (
@@ -581,6 +578,7 @@ export default function AdminZoomMeetings() {
           </div>
         </div>
       )}
-    </AdminLayout>
+    </>
   );
 }
+

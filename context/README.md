@@ -33,6 +33,23 @@ MongoDB schema reference for all collections:
 - TTL policy on search_logs (90-day)
 - All enum values documented
 
+### knowledge-lifecycle-design.md
+Knowledge lifecycle spec — defines the closed-loop pipeline from community
+question → Time-Trial → verified answer → promoted FAQ → admin-accepted →
+auto-embedded. Includes the 7 lifecycle stages, gate formulas, reputation
+weights, and admin override paths.
+
+### june-4-temp-context.md
+Session snapshot for June 4 work — covers:
+- Light-mode glassmorphism search overlay refactor (text2.txt spec) with 6 new
+  dual-mode CSS classes in `index.css`
+- "Ask the Community" ghost button + popular search pills redesign (text3.txt
+  spec) with 2 new CSS classes
+- Access-control pass — public read-only FAQ/Community routes, public AI
+  search with 5/day anonymous quota enforced via localStorage
+- 10 files touched; backend `tsc --noEmit` and frontend `tsc --noEmit` both
+  pass; verification curl matrix included
+
 ## Key Stats
 - **Files indexed**: 117
 - **Functions**: 354

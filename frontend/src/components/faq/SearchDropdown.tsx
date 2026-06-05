@@ -22,19 +22,19 @@ export default function SearchDropdown({
 }: SearchDropdownProps) {
   return (
     <div className="absolute left-0 right-0 top-full mt-3 z-40 animate-fade-in">
-      <div className="rounded-3xl border border-border bg-card/95 backdrop-blur-xl shadow-float">
+      <div className="search-panel">
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
           <div>
             <p className="text-[11px] font-semibold text-ink-faint uppercase tracking-wide">
               Search suggestions
             </p>
             <p className="text-sm text-ink mt-1">
-              Results for <span className="font-semibold">"{query}"</span>
+              Results for <span className="font-semibold text-ink">"{query}"</span>
             </p>
           </div>
           <button
             onClick={onClear}
-            className="text-xs font-medium text-ink-soft hover:text-ink transition-colors"
+            className="text-xs font-medium text-ink-soft hover:transition-colors"
           >
             Clear
           </button>
@@ -51,24 +51,26 @@ export default function SearchDropdown({
             <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
               {loading && (
                 [1, 2, 3].map((i) => (
-                  <div key={i} className="h-[72px] rounded-2xl border border-border/60 bg-white/70 animate-pulse" />
+                  <div key={i} className="h-[72px] rounded-2xl search-skeleton animate-pulse" />
                 ))
               )}
               {!loading && items.length === 0 && (
-                <div className="rounded-2xl border border-dashed border-border bg-white/70 p-4 text-xs text-ink-soft">
-                  No matches yet. Keep typing or browse a category.
+                <div className="rounded-2xl border border-dashed border-border bg-transparent p-4">
+                  <p className="text-xs text-ink-soft">
+                    No matches yet. Keep typing or browse a category.
+                  </p>
                 </div>
               )}
               {!loading && items.map((item, idx) => (
                 <button
                   key={item._id || item.title || item.question || idx}
                   onClick={() => onSelectQuestion(item)}
-                  className="w-full text-left rounded-2xl border border-border/60 bg-white/70 px-3 py-2 hover:bg-cream transition-colors"
+                  className="w-full text-left rounded-2xl border border-border/60 px-3 py-2 search-list-item"
                 >
                   <p className="text-sm font-semibold text-ink line-clamp-1">
                     {getQuestionTitle(item)}
                   </p>
-                  <p className="text-xs text-ink-soft line-clamp-1 mt-1">
+                  <p className="text-xs line-clamp-1 mt-1">
                     {getAnswerText(item)}
                   </p>
                 </button>
@@ -85,9 +87,9 @@ export default function SearchDropdown({
                 <button
                   key={name}
                   onClick={() => onSelectCategory(name)}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-2xl border border-border/60 bg-white/70 text-left hover:bg-cream transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-2xl border border-border/60 text-left search-list-item"
                 >
-                  <span className="text-ink-faint">{getCategoryIcon(name)}</span>
+                  <span className="opacity-40 group-hover:opacity-100 transition-opacity">{getCategoryIcon(name)}</span>
                   <span className="text-sm text-ink">{formatCategoryName(name)}</span>
                 </button>
               ))}

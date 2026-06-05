@@ -178,14 +178,14 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
           onFocus={onFocus}
           onBlur={handleBlur}
           placeholder={placeholder}
-          className="w-full pl-12 pr-32 py-5 sm:py-[22px] rounded-[26px] border border-border/70 bg-cream text-sm sm:text-base text-ink placeholder-ink-faint focus:outline-none focus:border-accent/50 focus:bg-white transition-all duration-300 shadow-[0_14px_34px_rgba(0,0,0,0.08)]"
+          className="w-full pl-12 pr-32 py-5 sm:py-[22px] rounded-[26px] border border-border/70 bg-cream text-sm sm:text-base text-ink placeholder-ink-faint focus:outline-none focus:border-accent/50 focus:bg-card transition-all duration-300 shadow-[0_14px_34px_rgba(0,0,0,0.08)]"
           autoComplete="off"
         />
 
         <button
           type="submit"
           disabled={!query.trim()}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-full bg-accent text-white text-xs font-semibold hover:bg-accent-hover active:bg-accent-dark transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-full bg-accent text-accent-text text-xs font-semibold hover:bg-accent-hover active:bg-accent-dark transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="opacity-80">
             <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.5"/>
@@ -196,7 +196,7 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
 
         {/* Suggestions dropdown */}
         {!disableSuggestions && showSuggestions && suggestions.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-border rounded-2xl shadow-[0_14px_34px_rgba(0,0,0,0.12)] z-50 overflow-hidden">
+          <div className="absolute top-full left-0 right-0 mt-2 rounded-2xl border border-border/60 bg-card shadow-subtle z-50 overflow-hidden">
             {suggestions.map((s) => (
               <button
                 key={s._id}
@@ -208,8 +208,8 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
                   <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.5"/>
                   <path d="M9.5 9.5L12.5 12.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                 </svg>
-                <span className="line-clamp-1">{s.question}</span>
-                <span className="ml-auto text-xs text-ink-faint shrink-0">{s.category}</span>
+                <span className="line-clamp-1 text-ink">{s.question}</span>
+                <span className="ml-auto text-xs text-ink-faint  shrink-0">{s.category}</span>
               </button>
             ))}
           </div>

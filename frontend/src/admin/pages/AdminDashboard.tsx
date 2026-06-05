@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import adminApi from '../utils/adminApi';
 import FAQGrowthChart from '../components/charts/FAQGrowthChart';
 import UserActivityChart from '../components/charts/UserActivityChart';
-import { ChartSkeleton, StatsCardSkeleton } from '../components/common/SkeletonLoader';
+import { AdminCard, AdminSectionLabel, AdminStatCard } from '../components/ui';
 
 interface StatsData {
   totalFaqs: number;
@@ -49,23 +49,20 @@ export default function AdminDashboard() {
     }).finally(() => setLoading(false));
   }, []);
 
+  const skeletonCount = () => Array.from({ length: 4 });
+
   return (
     <div className="space-y-6 max-w-5xl">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900">Dashboard</h2>
-        <p className="text-sm text-gray-500 mt-0.5">Platform overview</p>
-      </div>
-
       {/* FAQ stats */}
       <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">FAQs</p>
+        <AdminSectionLabel label="FAQs" />
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {loading ? Array.from({ length: 4 }).map((_, i) => <StatsCardSkeleton key={i} />) : stats ? (
+          {loading ? skeletonCount().map((_, i) => <div key={i} className="bg-card border border-border rounded-xl p-4 animate-pulse"><div className="h-7 bg-mist rounded w-16 mb-2" /><div className="h-3 bg-mist rounded w-24" /></div>) : stats ? (
             <>
-              <StatCard label="Total" value={stats.totalFaqs} sub={`+${stats.trends?.faqs ?? 0}% this week`} />
-              <StatCard label="Pending" value={stats.pendingFaqs} sub="awaiting review" alert={stats.pendingFaqs > 0} />
-              <StatCard label="Approved" value={stats.approvedFaqs} sub="live" />
-              <StatCard label="Rejected" value={stats.rejectedFaqs} sub="removed" />
+              <AdminStatCard label="Total" value={stats.totalFaqs} trend={stats.trends?.faqs} sub="this week" />
+              <AdminStatCard label="Pending" value={stats.pendingFaqs} sub="awaiting review" alert={stats.pendingFaqs > 0} />
+              <AdminStatCard label="Approved" value={stats.approvedFaqs} sub="live" />
+              <AdminStatCard label="Rejected" value={stats.rejectedFaqs} sub="removed" />
             </>
           ) : null}
         </div>
@@ -73,14 +70,19 @@ export default function AdminDashboard() {
 
       {/* Users + Searches */}
       <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Users &amp; Search</p>
+        <AdminSectionLabel label="Users &amp; Search" />
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {loading ? Array.from({ length: 4 }).map((_, i) => <StatsCardSkeleton key={i} />) : stats ? (
+          {loading ? skeletonCount().map((_, i) => <div key={i} className="bg-card border border-border rounded-xl p-4 animate-pulse"><div className="h-7 bg-mist rounded w-16 mb-2" /><div className="h-3 bg-mist rounded w-24" /></div>) : stats ? (
             <>
-              <StatCard label="Users" value={stats.totalUsers} sub={`+${stats.newUsersThisWeek ?? 0} this week`} />
-              <StatCard label="Searches Today" value={stats.searchesToday} sub="queries" />
-              <StatCard label="Total Searches" value={stats.totalSearches} sub="all time" />
-              <StatCard label="Failed Searches" value={searchInsights?.failedSearches ?? 0} sub={`${searchInsights?.failRate ?? '0%'} fail rate`} alert={(searchInsights?.failedSearches ?? 0) > 0} />
+              <AdminStatCard label="Users" value={stats.totalUsers} sub={`+${stats.newUsersThisWeek ?? 0} this week`} />
+              <AdminStatCard label="Searches Today" value={stats.searchesToday} sub="queries" />
+              <AdminStatCard label="Total Searches" value={stats.totalSearches} sub="all time" />
+              <AdminStatCard
+                label="Failed Searches"
+                value={searchInsights?.failedSearches ?? 0}
+                sub={`${searchInsights?.failRate ?? '0%'} fail rate`}
+                alert={(searchInsights?.failedSearches ?? 0) > 0}
+              />
             </>
           ) : null}
         </div>
@@ -88,12 +90,12 @@ export default function AdminDashboard() {
 
       {/* Community */}
       <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Community</p>
+        <AdminSectionLabel label="Community" />
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {loading ? Array.from({ length: 2 }).map((_, i) => <StatsCardSkeleton key={i} />) : (
+          {loading ? skeletonCount().slice(0, 2).map((_, i) => <div key={i} className="bg-card border border-border rounded-xl p-4 animate-pulse"><div className="h-7 bg-mist rounded w-16 mb-2" /><div className="h-3 bg-mist rounded w-24" /></div>) : (
             <>
-              <StatCard label="Posts" value={communityTotal} sub="total posts" />
-              <StatCard label="Unanswered" value={communityUnanswered} sub="need response" alert={communityUnanswered > 0} />
+              <AdminStatCard label="Posts" value={communityTotal} sub="total posts" />
+              <AdminStatCard label="Unanswered" value={communityUnanswered} sub="need response" alert={communityUnanswered > 0} />
             </>
           )}
         </div>
@@ -101,82 +103,54 @@ export default function AdminDashboard() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100">
-            <p className="text-xs font-semibold text-gray-700">FAQ Growth</p>
-            <p className="text-[10px] text-gray-400">Last 14 days</p>
-          </div>
-          <div className="p-4">
-            {loading ? <ChartSkeleton height={160} /> : <FAQGrowthChart data={growth} />}
-          </div>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100">
-            <p className="text-xs font-semibold text-gray-700">User Activity</p>
-            <p className="text-[10px] text-gray-400">Last 14 days</p>
-          </div>
-          <div className="p-4">
-            {loading ? <ChartSkeleton height={160} /> : <UserActivityChart data={activity} />}
-          </div>
-        </div>
+        <AdminCard title="FAQ Growth" subtitle="Last 14 days">
+          {loading ? <div className="h-40 bg-mist rounded-lg animate-pulse" /> : <FAQGrowthChart data={growth} />}
+        </AdminCard>
+        <AdminCard title="User Activity" subtitle="Last 14 days">
+          {loading ? <div className="h-40 bg-mist rounded-lg animate-pulse" /> : <UserActivityChart data={activity} />}
+        </AdminCard>
       </div>
 
       {/* Top search terms */}
       {!loading && searchInsights?.topQueries && searchInsights.topQueries.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100">
-            <p className="text-xs font-semibold text-gray-700">Top Search Terms</p>
-          </div>
-          <div className="divide-y divide-gray-100">
+        <AdminCard title="Top Search Terms">
+          <div className="divide-y divide-border/50">
             {searchInsights.topQueries.slice(0, 8).map((q, i) => (
-              <div key={i} className="flex items-center justify-between px-4 py-2.5">
+              <div key={i} className="flex items-center justify-between py-2.5">
                 <div className="flex items-center gap-3">
-                  <span className="text-[10px] text-gray-400 w-4 text-right">{i + 1}</span>
-                  <span className="text-sm text-gray-800">{q.term}</span>
+                  <span className="text-[10px] text-ink-faint w-4 text-right">{i + 1}</span>
+                  <span className="text-sm text-ink">{q.term}</span>
                 </div>
-                <span className="text-xs text-gray-500 tabular-nums">{q.count}</span>
+                <span className="text-xs text-ink-soft tabular-nums">{q.count?.toLocaleString()}</span>
               </div>
             ))}
           </div>
-        </div>
+        </AdminCard>
       )}
 
       {/* Platform info */}
       {!loading && stats && (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100">
-            <p className="text-xs font-semibold text-gray-700">Platform</p>
-          </div>
-          <div className="divide-y divide-gray-100">
-            <div className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-sm text-gray-600">Top Category</span>
-              <span className="text-sm font-medium text-gray-900">{stats.topCategory}</span>
+        <AdminCard title="Platform">
+          <div className="divide-y divide-border/50">
+            <div className="flex items-center justify-between py-2.5">
+              <span className="text-sm text-ink-soft">Top Category</span>
+              <span className="text-sm font-medium text-ink">{stats.topCategory}</span>
             </div>
-            <div className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-sm text-gray-600">Resolution Rate</span>
-              <span className="text-sm font-medium text-gray-900">
+            <div className="flex items-center justify-between py-2.5">
+              <span className="text-sm text-ink-soft">Resolution Rate</span>
+              <span className="text-sm font-medium text-ink">
                 {stats.totalFaqs > 0 ? Math.round((stats.approvedFaqs / stats.totalFaqs) * 100) : 0}%
               </span>
             </div>
-            <div className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-sm text-gray-600">FAQ Trend</span>
-              <span className={`text-sm font-medium ${((stats.trends?.faqs ?? 0) >= 0) ? 'text-emerald-600' : 'text-red-500'}`}>
+            <div className="flex items-center justify-between py-2.5">
+              <span className="text-sm text-ink-soft">FAQ Trend</span>
+              <span className={`text-sm font-medium ${(stats.trends?.faqs ?? 0) >= 0 ? 'text-success' : 'text-danger'}`}>
                 {(stats.trends?.faqs ?? 0) >= 0 ? '+' : ''}{stats.trends?.faqs ?? 0}% vs last week
               </span>
             </div>
           </div>
-        </div>
+        </AdminCard>
       )}
-    </div>
-  );
-}
-
-function StatCard({ label, value, sub, alert }: { label: string; value: number; sub: string; alert?: boolean }) {
-  return (
-    <div className={`bg-white border rounded-lg p-4 ${alert ? 'border-amber-300 bg-amber-50' : 'border-gray-200'}`}>
-      <p className={`text-2xl font-bold tabular-nums ${alert ? 'text-amber-700' : 'text-gray-900'}`}>{value}</p>
-      <p className="text-sm font-medium text-gray-700 mt-0.5">{label}</p>
-      <p className="text-xs text-gray-400 mt-0.5">{sub}</p>
     </div>
   );
 }

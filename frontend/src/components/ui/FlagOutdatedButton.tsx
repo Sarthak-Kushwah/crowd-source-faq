@@ -89,7 +89,7 @@ export default function FlagOutdatedButton({ faqId, reviewStatus, onFlagged }: F
               <button
                 type="submit"
                 disabled={loading}
-                className="px-4 py-2 text-xs rounded-xl bg-orange-500 text-white hover:bg-orange-600 transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-xs rounded-xl bg-orange-500 text-accent-text hover:bg-orange-600 transition-colors disabled:opacity-50"
               >
                 {loading ? 'Sending…' : 'Submit Flag'}
               </button>

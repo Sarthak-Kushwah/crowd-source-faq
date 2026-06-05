@@ -155,3 +155,32 @@ export async function validate<T extends z.ZodTypeAny>(
     return null;
   }
 }
+
+// ─── Express middleware factory ─────────────────────────────────────────────────
+
+import type { Request, RequestHandler } from 'express';
+
+/**
+ * Creates an Express middleware that validates req.body against a Zod schema.
+ * Returns 400 with detailed errors on failure; passes to next() on success.
+ *
+ * Usage:
+ *   router.post('/register', registerLimiter, validateBody(registerSchema), register);
+ */
+export function validateBody<T extends z.ZodTypeAny>(schema: T): RequestHandler {
+  return (req: Request, res: Response, next) => {
+    schema
+      .parseAsync(req.body)
+      .then((body) => { req.body = body; next(); })
+      .catch((err) => {
+        if (err instanceof z.ZodError) {
+          res.status(400).json({
+            message: 'Validation error',
+            errors: err.issues.map((e: z.ZodIssue) => ({ field: e.path.join('.'), message: e.message })),
+          });
+        } else {
+          res.status(500).json({ message: 'Validation error' });
+        }
+      });
+  };
+}

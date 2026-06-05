@@ -17,6 +17,7 @@ import FAQ from '../models/FAQ.js';
 import CommunityPost from '../models/CommunityPost.js';
 import { generateEmbedding } from '../utils/embeddings.js';
 import { detectDuplicatesWithAI } from '../utils/duplicateDetector.js';
+import { logger } from '../utils/logger.js';
 
 // ─── Thresholds ────────────────────────────────────────────────────────────────
 
@@ -190,7 +191,7 @@ export async function checkDuplicate(
       }
     }
   } catch (err) {
-    console.warn('FAQ duplicate check failed:', (err as Error).message);
+    logger.warn(`FAQ duplicate check failed: ${(err as Error).message}`);
   }
 
   // 2. Community post keyword search
@@ -235,7 +236,7 @@ export async function checkDuplicate(
       }
     }
   } catch (err) {
-    console.warn('Community duplicate check failed:', (err as Error).message);
+    logger.warn(`Community duplicate check failed: ${(err as Error).message}`);
   }
 
   return matches.sort((a, b) => b.score - a.score).slice(0, 5);
@@ -283,7 +284,7 @@ export const checkDuplicateController = async (
         });
       }
     } catch (err) {
-      console.warn('[checkDuplicate] knowledge search failed:', (err as Error).message);
+      logger.warn(`[checkDuplicate] knowledge search failed: ${(err as Error).message}`);
     }
 
     // Fallback: keyword heuristics if AI + knowledge return nothing

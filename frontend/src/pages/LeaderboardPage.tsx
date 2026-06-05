@@ -41,9 +41,9 @@ const TIER_ICONS: Record<string, string> = {
 };
 
 const RANK_STYLES: Record<number, string> = {
-  1: 'from-yellow-400 to-amber-500 text-white',
-  2: 'from-slate-300 to-slate-400 text-white',
-  3: 'from-orange-400 to-orange-500 text-white',
+  1: 'from-yellow-400 to-amber-500 text-accent-text',
+  2: 'from-slate-300 to-slate-400 text-accent-text',
+  3: 'from-orange-400 to-orange-500 text-accent-text',
 };
 
 export default function LeaderboardPage() {
@@ -101,11 +101,7 @@ export default function LeaderboardPage() {
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
-                className={`px-4 py-1.5 text-xs rounded-lg border transition-colors ${
-                  period === p
-                    ? 'bg-ink text-white border-ink'
-                    : 'border-border text-ink-faint hover:bg-mist'
-                }`}
+                className={`toggle-segment ${period === p ? 'active' : ''}`}
               >
                 {p.charAt(0).toUpperCase() + p.slice(1)}
               </button>

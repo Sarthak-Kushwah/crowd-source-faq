@@ -49,6 +49,7 @@ export interface IFAQ extends Document {
   flagReason: string | null;
   flaggedBy: Types.ObjectId | null;
   reviewCycle: number;
+  lastCheckedAt: Date | null;
   // Promotion system
   trustLevel: TrustLevel;
   sourceType: SourceType;
@@ -173,6 +174,8 @@ const faqSchema = new MongooseSchema(
       type: Number,
       default: 0,
     },
+    // AI audit tracking
+    lastCheckedAt: { type: Date, default: null },
     // Promotion system — trust levels
     trustLevel: {
       type: String,

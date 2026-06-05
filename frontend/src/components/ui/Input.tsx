@@ -35,7 +35,7 @@ export default function Input({
         <input
           id={id}
           className={
-            `w-full px-4 py-2.5 rounded-xl border border-border bg-white text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 focus:border-accent transition-all duration-200 ease-smooth `
+            `w-full px-4 py-2.5 rounded-xl border border-border bg-card text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 focus:border-accent transition-all duration-200 ease-smooth `
             + `${iconLeft ? 'pl-10' : ''} `
             + `${iconRight ? 'pr-10' : ''} `
             + `${error ? 'border-danger ring-1 ring-danger-light' : ''} `

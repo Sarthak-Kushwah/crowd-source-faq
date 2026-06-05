@@ -1,15 +1,15 @@
 import { Router } from 'express';
 import {
   getAllPosts,
-  createPost,
   getPostById,
+  createPost,
   toggleUpvote,
   resolvePost,
-  deletePost,
-  getSolvedPosts,
   requestExpertHelp,
-  reportPost,
+  deletePost,
   convertCommunityPostToFAQ,
+  reportPost,
+  getSolvedPosts,
   setPostDNA,
   setPostTags,
   objectToPromotion,
@@ -27,6 +27,8 @@ import {
   setCommentDNA,
   clearCommentDNA,
   acceptCommentAnswer,
+  updateComment,
+  deleteComment,
 } from '../controllers/commentController.js';
 import { toggleCommentUpvote, toggleCommentDownvote } from '../controllers/commentVoteController.js';
 import { searchCommunityPosts } from '../controllers/communitySearchController.js';
@@ -35,32 +37,39 @@ import { getBookmarks, toggleBookmark } from '../controllers/bookmarkController.
 import { getCommunityStats } from '../controllers/communityStatsController.js';
 import { getRelatedForPost } from '../controllers/relatedController.js';
 import { protect, authorize } from '../middleware/auth.js';
+import { validateBody, createPostSchema, addCommentSchema, resolvePostSchema, reportPostSchema, checkDuplicateSchema } from '../utils/validation.js';
 
 const router = Router();
 
-router.get('/search', protect, searchCommunityPosts);
-router.get('/review-queue', protect, authorize('admin', 'moderator'), getReviewQueue);
-router.get('/solved', protect, getSolvedPosts);
-router.get('/bookmarks', protect, getBookmarks);
-router.get('/answers/list', protect, getAnswersList);
+// Public read-only routes — anonymous users can browse community posts freely.
+// (User-specific actions like bookmarks and admin/moderator actions like
+//  review-queue remain protected below.)
+router.get('/search', searchCommunityPosts);
+router.get('/solved', getSolvedPosts);
+router.get('/answers/list', getAnswersList);
 router.get('/stats', getCommunityStats);
 
-router.get('/', protect, getAllPosts);
-router.post('/check-duplicate', protect, checkDuplicateController);
-router.get('/:id', protect, getPostById);
-router.get('/:id/related', protect, getRelatedForPost);
-router.post('/', protect, createPost);
+router.get('/', getAllPosts);
+router.get('/:id', getPostById);
+router.get('/:id/related', getRelatedForPost);
+
+// Protected — user-specific or admin/moderator only
+router.get('/review-queue', protect, authorize('admin', 'moderator'), getReviewQueue);
+router.get('/bookmarks', protect, getBookmarks);
+
+router.post('/check-duplicate', protect, validateBody(checkDuplicateSchema), checkDuplicateController);
+router.post('/', protect, validateBody(createPostSchema), createPost);
 router.post('/:id/upvote', protect, toggleUpvote);
-router.post('/:id/comments', protect, addComment);
+router.post('/:id/comments', protect, validateBody(addCommentSchema), addComment);
 router.post('/:id/comments/:commentId/upvote', protect, toggleCommentUpvote);
 router.post('/:id/comments/:commentId/downvote', protect, toggleCommentDownvote);
 router.patch('/:id/comments/:commentId/verify', protect, authorize('admin', 'moderator'), verifyComment);
 router.patch('/:id/comments/:commentId/accept-answer', protect, acceptCommentAnswer);
 router.patch('/:id/comments/:commentId/dna', protect, authorize('admin', 'moderator'), setCommentDNA);
 router.delete('/:id/comments/:commentId/dna', protect, authorize('admin', 'moderator'), clearCommentDNA);
-router.patch('/:id/resolve', protect, resolvePost);
+router.patch('/:id/resolve', protect, validateBody(resolvePostSchema), resolvePost);
 router.post('/:id/request-expert', protect, requestExpertHelp);
-router.post('/:id/report', protect, reportPost);
+router.post('/:id/report', protect, validateBody(reportPostSchema), reportPost);
 router.post('/:id/bookmark', protect, toggleBookmark);
 router.post('/:id/object-to-promotion', protect, authorize('admin', 'moderator'), objectToPromotion);
 router.post('/:id/confirm-spam', protect, authorize('admin', 'moderator'), confirmSpam);

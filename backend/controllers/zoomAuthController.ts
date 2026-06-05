@@ -13,7 +13,7 @@ import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import User from '../models/User.js';
 import { ZoomMeeting } from '../models/ZoomMeeting.js';
-import { buildZoomAuthUrl, exchangeCodeForTokens, getZoomUserId } from '../utils/zoomOAuth.js';
+import { buildZoomAuthUrl, exchangeCodeForTokens, getZoomUserId, verifyOAuthState } from '../utils/zoomOAuth.js';
 import { encrypt } from '../utils/crypto.js';
 import { zoomOAuthCircuit, CircuitOpenError } from '../utils/circuitBreaker.js';
 import { sanitizeBase64, sanitizeText } from '../utils/sanitize.js';
@@ -66,18 +66,14 @@ export async function callbackZoom(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  // Sanitize and decode the user's internal ID from the state param
-  let userId: string;
-  try {
-    const safeState = sanitizeBase64(state);
-    userId = Buffer.from(safeState, 'base64').toString('utf8');
-  } catch {
-    res.status(400).json({ message: 'Invalid state parameter' });
-    return;
-  }
-
+  // Verify the HMAC-signed state. This is the fix for the OAuth state
+  // forgery vulnerability (issue N1): previously the state was just
+  // base64(userId) which any attacker could forge. Now we verify the HMAC
+  // signature + expiry + userId shape before trusting the userId in the state.
+  const userId = verifyOAuthState(state);
   if (!userId) {
-    res.status(400).json({ message: 'Invalid state parameter' });
+    logger.warn(`[Zoom OAuth] Invalid or expired state from callback (state=${state.slice(0, 20)}...)`);
+    res.redirect(`${process.env.CLIENT_URL ?? 'http://localhost:5173'}/account?zoom_error=${encodeURIComponent('Invalid or expired authentication state. Please try again.')}`);
     return;
   }
 
@@ -248,7 +244,7 @@ export async function adminBackfill(req: Request, res: Response): Promise<void> 
       const downloadUrl = transcriptFile?.downloadUrl;
       if (!downloadUrl) continue;
 
-      await ZM.create({
+      const inserted = await ZM.create({
         userId: new mongoose.Types.ObjectId(target),
         zoomMeetingId: meeting.id,
         topic: sanitizeText(meeting.topic ?? 'Untitled Meeting'),
@@ -259,7 +255,7 @@ export async function adminBackfill(req: Request, res: Response): Promise<void> 
         sourcing: 'webhook',
         sourceType: 'zoom',
       });
-      processTranscriptForUser(meeting, target).catch((err: any) =>
+      processTranscriptForUser(inserted, target).catch((err: any) =>
         logger.error(`[Admin Backfill] Failed meeting ${meeting.id}: ${err.message}`)
       );
       queued++;

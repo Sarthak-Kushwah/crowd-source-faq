@@ -578,7 +578,7 @@ export default function AccountPage() {
               <button
                 onClick={handleConnectZoom}
                 disabled={zoomLoading}
-                className="w-full px-4 py-2.5 rounded-xl bg-[#2D8CFF] text-white text-sm font-semibold hover:bg-[#1a78ef] active:bg-[#1560d4] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full px-4 py-2.5 rounded-xl bg-[#2D8CFF] text-accent-text text-sm font-semibold hover:bg-[#1a78ef] active:bg-[#1560d4] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {zoomLoading ? (
                   <>
@@ -608,34 +608,92 @@ export default function AccountPage() {
 
             {/* Manual transcript upload — robustness fallback when webhook fails */}
             {(zoomStatus?.connected || (user?.role === 'admin' || user?.role === 'moderator')) && (
-              <div className="border-t border-border/40 pt-4 space-y-3.5">
+              <div className="border-t border-border/60 pt-5 mt-1 space-y-3.5">
                 <div className="flex items-center gap-2">
-                  <div className="w-1 h-1 rounded-full bg-ink-faint" />
-                  <p className="text-[11px] text-ink-faint">
-                    If the webhook missed a meeting, upload the transcript manually.
-                  </p>
+                  <div className="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xs font-semibold text-ink">Manual Transcript Upload</h3>
+                    <p className="text-[10px] text-ink-faint mt-0.5">When the webhook misses a meeting, drop the file here to extract FAQs.</p>
+                  </div>
                 </div>
 
                 {/* Topic field — always required */}
                 <div>
-                  <label className="text-[11px] text-ink-faint mb-1 block">Meeting topic *</label>
+                  <label htmlFor="transcript-topic" className="text-[11px] font-medium text-ink-soft mb-1.5 block">Meeting topic <span className="text-danger">*</span></label>
                   <input
                     id="transcript-topic"
                     type="text"
                     placeholder="e.g. Q3 Planning, Sprint Retro, Product Review…"
-                    className="w-full px-3 py-2 rounded-xl border border-border bg-bg text-sm text-ink placeholder-ink-faint/60 focus:outline-none focus:border-accent"
+                    className="w-full px-3 py-2 rounded-xl border border-border bg-bg text-sm text-ink placeholder-ink-faint/60 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 transition-all"
                   />
                 </div>
 
-                {/* File selector — choose a file first */}
+                {/* Choose file format — step 1 of 3-step upload flow */}
+                <div>
+                  <p className="text-[11px] font-medium text-ink-soft mb-1.5">Choose file format</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* VTT upload */}
+                    <div className="flex flex-col gap-1.5">
+                      <input
+                        ref={transcriptRef}
+                        type="file"
+                        accept=".vtt,text/vtt"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = '';
+                          if (!file) return;
+                          setTranscriptSelectedFile({ file, type: 'vtt' });
+                          setTranscriptMsg(null);
+                        }}
+                        className="hidden"
+                        id="transcript-upload-vtt"
+                      />
+                      <label
+                        htmlFor="transcript-upload-vtt"
+                        className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-xl border border-dashed border-accent/40 bg-accent/5 text-accent hover:bg-accent/10 hover:border-accent/60 text-xs font-medium cursor-pointer transition-all"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6 9V3M3 5l3 3 3-3M2 10h8"/></svg>
+                        Zoom .vtt
+                      </label>
+                    </div>
+
+                    {/* TXT upload */}
+                    <div className="flex flex-col gap-1.5">
+                      <input
+                        type="file"
+                        accept=".txt,text/plain"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = '';
+                          if (!file) return;
+                          setTranscriptSelectedFile({ file, type: 'txt' });
+                          setTranscriptMsg(null);
+                        }}
+                        className="hidden"
+                        id="transcript-upload-txt"
+                      />
+                      <label
+                        htmlFor="transcript-upload-txt"
+                        className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-xl border border-dashed border-accent/40 bg-accent/5 text-accent hover:bg-accent/10 hover:border-accent/60 text-xs font-medium cursor-pointer transition-all"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6 9V3M3 5l3 3 3-3M2 10h8"/></svg>
+                        Plain .txt
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* State-dependent area: file selected → Process/Cancel, processing → progress, done → success */}
                 {transcriptProgress?.stage === 'done' ? (
-                  // Upload done — show reset
                   <div className="flex items-center justify-between px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl">
                     <span className="text-xs text-emerald-700">Done — {transcriptProgress.message}</span>
                     <button onClick={handleTranscriptCancel} className="text-[10px] text-emerald-600 hover:text-emerald-800 font-medium underline">Upload another</button>
                   </div>
                 ) : transcriptMeetingId ? (
-                  // Processing — show progress bar
                   <div className="px-3 py-2.5 bg-accent/5 border border-accent/20 rounded-xl">
                     <div className="flex items-center justify-between text-[11px] text-accent font-medium mb-1.5">
                       <span className="capitalize">{transcriptProgress?.stage}</span>
@@ -646,8 +704,7 @@ export default function AccountPage() {
                     </div>
                     <p className="text-[10px] text-accent/70">{transcriptProgress?.message}</p>
                   </div>
-                ) : (
-                  // File selected but not processed yet — show Process / Cancel
+                ) : transcriptSelectedFile ? (
                   <div className="px-3 py-2.5 bg-accent/5 border border-accent/20 rounded-xl space-y-2">
                     <div className="flex items-center gap-2">
                       <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent flex-shrink-0">
@@ -660,74 +717,20 @@ export default function AccountPage() {
                       <button
                         onClick={handleTranscriptProcess}
                         disabled={transcriptUploading}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-white text-xs font-semibold hover:bg-accent-hover disabled:opacity-50 transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-accent-text text-xs font-semibold hover:bg-accent-hover disabled:opacity-50 transition-colors"
                       >
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                         Process
                       </button>
                       <button
                         onClick={handleTranscriptCancel}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-ink text-xs font-medium hover:bg-gray-50 transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-ink text-xs font-medium hover:bg-mist transition-colors"
                       >
                         Cancel
                       </button>
                     </div>
                   </div>
-                )}
-
-                {/* Hidden file inputs — trigger only on label click */}
-                <div className="grid grid-cols-2 gap-2">
-                  {/* VTT upload */}
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-[11px] font-medium text-ink-faint">Zoom VTT file</span>
-                    <input
-                      ref={transcriptRef}
-                      type="file"
-                      accept=".vtt,text/vtt"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        e.target.value = '';
-                        if (!file) return;
-                        setTranscriptSelectedFile({ file, type: 'vtt' });
-                        setTranscriptMsg(null);
-                      }}
-                      className="hidden"
-                      id="transcript-upload-vtt"
-                    />
-                    <label
-                      htmlFor="transcript-upload-vtt"
-                      className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-xl border border-accent/40 bg-accent/5 text-accent hover:bg-accent/10 hover:border-accent/60 text-xs font-medium cursor-pointer transition-all"
-                    >
-                      <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6 9V3M3 5l3 3 3-3M2 10h8"/></svg>
-                      Upload .vtt
-                    </label>
-                  </div>
-
-                  {/* TXT upload */}
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-[11px] font-medium text-ink-faint">Plain text file</span>
-                    <input
-                      type="file"
-                      accept=".txt,text/plain"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        e.target.value = '';
-                        if (!file) return;
-                        setTranscriptSelectedFile({ file, type: 'txt' });
-                        setTranscriptMsg(null);
-                      }}
-                      className="hidden"
-                      id="transcript-upload-txt"
-                    />
-                    <label
-                      htmlFor="transcript-upload-txt"
-                      className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-xl border border-accent/40 bg-accent/5 text-accent hover:bg-accent/10 hover:border-accent/60 text-xs font-medium cursor-pointer transition-all"
-                    >
-                      <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6 9V3M3 5l3 3 3-3M2 10h8"/></svg>
-                      Upload .txt
-                    </label>
-                  </div>
-                </div>
+                ) : null}
 
                 {transcriptMsg && (
                   <div className={`text-xs px-3 py-2 rounded-lg ${
@@ -773,7 +776,7 @@ export default function AccountPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={confirmTranscriptProcess}
-                className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent-hover transition-colors"
+                className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-accent text-accent-text text-sm font-semibold hover:bg-accent-hover transition-colors"
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                 Confirm & Process

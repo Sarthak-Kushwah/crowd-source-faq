@@ -146,8 +146,7 @@ export default function AdminUnresolvedSearch() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Unresolved Search Feedback</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Queries where FAQ results didn't answer the user's question</p>
+          <p className="text-sm text-gray-500">Searches that returned no matching FAQ</p>
         </div>
         <button
           onClick={handleBulkDeleteSpam}

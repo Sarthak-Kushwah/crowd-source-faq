@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import User from '../models/User.js';
 import CommunityPost from '../models/CommunityPost.js';
+import { logger } from '../utils/logger.js';
 
 /** GET /api/community/bookmarks — get current user's bookmarked posts */
 export async function getBookmarks(req: Request, res: Response): Promise<void> {
@@ -20,7 +21,7 @@ export async function getBookmarks(req: Request, res: Response): Promise<void> {
       .map(p => ({ ...(p as any).toObject(), bookmarks: (p as any).bookmarks ?? [] }));
     res.json({ bookmarks: posts, total: posts.length });
   } catch (err) {
-    console.error('getBookmarks:', err);
+    logger.error(`getBookmarks: ${(err as Error).message}`);
     res.status(500).json({ error: 'Failed to load bookmarks' });
   }
 }
@@ -52,7 +53,7 @@ export async function toggleBookmark(req: Request, res: Response): Promise<void>
 
     res.json({ bookmarked, postId });
   } catch (err) {
-    console.error('toggleBookmark:', err);
+    logger.error(`toggleBookmark: ${(err as Error).message}`);
     res.status(500).json({ error: 'Failed to update bookmark' });
   }
 }

@@ -114,7 +114,7 @@ export default function TopSolved() {
           <p className="text-xs text-ink-soft mt-1">Be the first to ask a question!</p>
           <button
             onClick={() => navigate('/community?ask=true')}
-            className="mt-4 px-5 py-2 text-sm font-semibold text-ink border-[1.5px] border-ink rounded-full hover:bg-ink hover:text-white transition-all"
+            className="mt-4 px-5 py-2 text-sm font-semibold text-ink border-[1.5px] border-ink rounded-full hover:bg-ink hover:text-accent-text transition-all"
           >
             Ask a Question
           </button>

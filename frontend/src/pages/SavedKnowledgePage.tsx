@@ -12,7 +12,7 @@ import type { Post } from '../types/ui';
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SavedKnowledgePage() {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const gate = useAuthGate();
   const navigate = useNavigate();
   const [posts, setPosts] = useState<Post[]>([]);
@@ -20,14 +20,15 @@ export default function SavedKnowledgePage() {
   const [error, setError] = useState('');
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
-  // Redirect to home if not logged in
+  // Redirect if not logged in (only after auth has finished loading)
   useEffect(() => {
-    if (!loading && user === null) {
+    if (!loading && !isAuthenticated) {
       navigate('/', { replace: true });
     }
-  }, [loading, user, navigate]);
+  }, [isAuthenticated, loading, navigate]);
 
   const fetchBookmarks = useCallback(() => {
+    if (!isAuthenticated) return;
     setLoading(true);
     api.get('/community/bookmarks')
       .then((res) => {
@@ -127,7 +128,7 @@ export default function SavedKnowledgePage() {
             </p>
             <button
               onClick={() => navigate('/community')}
-              className="mt-4 px-4 py-2 rounded-xl bg-accent text-white text-sm font-medium hover:bg-accent/90 transition-colors"
+              className="mt-4 px-4 py-2 rounded-xl bg-accent text-accent-text text-sm font-medium hover:bg-accent/90 transition-colors"
             >
               Browse Community Board
             </button>

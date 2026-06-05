@@ -16,6 +16,7 @@
 import { ZoomInsightType } from '../models/ZoomMeeting.js';
 import { resolveProviderAsync } from './aiProvider.js';
 import { parseVTTWithSpeakers, extractSnippet, isEmptyTranscript, TranscriptSegment } from './vttParser.js';
+import { logger } from './logger.js';
 
 export interface ExtractedItem {
   type: ZoomInsightType;
@@ -36,7 +37,7 @@ function parseTranscript(raw: string): TranscriptSegment[] {
   const trimmed = raw.trim();
   if (trimmed.startsWith('WEBVTT')) {
     const { warning } = isEmptyTranscript(raw);
-    if (warning) console.warn('[zoomExtractor] Transcript below 50 chars — processing anyway.');
+    if (warning) logger.warn('[zoomExtractor] Transcript below 50 chars — processing anyway.');
     return parseVTTWithSpeakers(raw);
   }
   // Plain .txt: one line = one paragraph
@@ -57,7 +58,7 @@ const SYSTEM_PROMPT = `You are a precise meeting-notes analyst. Your task is to 
 
 Output rules (strictly follow these):
 - Return ONLY a valid JSON array. No preamble, no explanation, no markdown.
-- Each array item MUST have these exact fields: "type" ("FAQ" or "Announcement"), "question" (string, only for FAQ; omit or null for Announcement), "answer_or_content" (string), "confidence_score" (number 0.0 to 1.0, how certain you are this was correctly extracted), "transcript_snippet" (string, max 150 chars, the exact transcript excerpt this was derived from).
+- Each array item MUST have these exact fields: "type" ("FAQ" or "Announcement"), "question" (string, only for FAQ; omit or null for Announcement), "answer_or_content" (string), "confidence_score" (number 0.0 to 1.0, how certain you are this was correctly extracted), "transcript_snippet" (string, MAX 150 chars, ONLY the exact transcript excerpt that answers THIS specific question or contains THIS announcement — do NOT include other questions/answers), "start_sec" (number, approximate seconds offset in the transcript where this item starts — used to locate the exact segment).
 - For FAQs, "question" must be a natural question asked by a participant.
 - For Announcements, "question" should be null.
 - Set confidence_score to 0.0 if the text is garbled, ambiguous, or you're guessing.
@@ -90,7 +91,7 @@ export async function extractInsightsFromTranscript(
   const transcript = segments.map(s => `${s.speaker ? s.speaker + ': ' : ''}${s.text}`).join('\n');
 
   if (!transcript.replace(/\s/g, '')) {
-    console.warn('[zoomExtractor] Transcript is empty after parsing, returning no insights.');
+    logger.warn('[zoomExtractor] Transcript is empty after parsing, returning no insights.');
     return [];
   }
 
@@ -158,8 +159,57 @@ export async function extractInsightsFromTranscript(
  * Parse the raw model output, being defensive about malformed responses.
  * Uses actual timed segments to produce accurate transcript snippets.
  */
-function parseExtractedItems(raw: string, segments: TranscriptSegment[]): ExtractedItem[] {
-  // Try to find a JSON array in the response
+/**
+ * Keyword-based snippet: find the segment in the transcript that best matches
+ * a few keywords from the question/answer, then return that segment + 1 neighbour.
+ * Used as a fallback when the AI doesn't provide `start_sec`.
+ */
+function keywordSnippet(
+  segments: TranscriptSegment[],
+  question: string | undefined,
+  answer: string,
+  maxChars = 220,
+): string {
+  if (segments.length === 0) return '';
+  // Build keyword set from the question + first words of the answer
+  const stop = new Set(['the','a','an','is','are','was','were','be','been','being','do','does','did','have','has','had','will','would','should','can','could','may','might','of','in','on','at','to','for','with','by','from','as','it','this','that','these','those','i','you','we','they','he','she','them','our','your','my','me','us','what','when','where','why','how','who','which']);
+  const tokens = (question ? question + ' ' : '') + answer.slice(0, 120);
+  const keywords = tokens
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length >= 4 && !stop.has(w));
+  if (keywords.length === 0) {
+    return segments[0] ? `${segments[0].speaker ? segments[0].speaker + ': ' : ''}${segments[0].text}`.slice(0, maxChars) : '';
+  }
+  // Score each segment by how many distinct keywords appear in its text
+  let bestIdx = 0;
+  let bestScore = 0;
+  for (let i = 0; i < segments.length; i++) {
+    const t = segments[i].text.toLowerCase();
+    const s = new Set<string>();
+    for (const k of keywords) if (t.includes(k)) s.add(k);
+    if (s.size > bestScore) { bestScore = s.size; bestIdx = i; }
+  }
+  if (bestScore === 0) {
+    return segments[0] ? `${segments[0].speaker ? segments[0].speaker + ': ' : ''}${segments[0].text}`.slice(0, maxChars) : '';
+  }
+  // Pick the best segment + (optionally) one neighbour for context
+  const lo = Math.max(0, bestIdx - 1);
+  const hi = Math.min(segments.length, bestIdx + 2);
+  const out: string[] = [];
+  let total = 0;
+  for (let i = lo; i < hi; i++) {
+    const seg = segments[i];
+    const line = `${seg.speaker ? seg.speaker + ': ' : ''}${seg.text}`;
+    if (total + line.length + 1 > maxChars && out.length > 0) break;
+    out.push(line);
+    total += line.length + 1;
+  }
+  return out.join(' ').slice(0, maxChars);
+}
+
+function parseExtractedItems(raw: string, segments: TranscriptSegment[]): ExtractedItem[] {  // Try to find a JSON array in the response
   const match = raw.match(/\[[\s\S]*\]/);
   if (!match) return [];
 
@@ -184,8 +234,10 @@ function parseExtractedItems(raw: string, segments: TranscriptSegment[]): Extrac
         const ts    = String(raw['transcript_timestamp'] ?? '').trim();
         const spkr  = String(raw['speaker']              ?? '').trim();
         // otherwise grab the first segment as a fallback
-        const snippetStartSec = typeof raw['start_sec'] === 'number' ? Number(raw['start_sec']) : 0;
-        const rawSnippet = extractSnippet(segments, snippetStartSec, 120);
+        const snippetStartSec = typeof raw['start_sec'] === 'number' ? Number(raw['start_sec']) : NaN;
+        const rawSnippet = !isNaN(snippetStartSec) ? extractSnippet(segments, snippetStartSec, 120) : '';
+        // Fall back to keyword-based extraction if time-based didn't apply
+        const finalSnippet = rawSnippet || keywordSnippet(segments, item.question, String(item.answer_or_content ?? ''));
         return {
           type: item.type,
           question: item.question ?? undefined,
@@ -193,7 +245,7 @@ function parseExtractedItems(raw: string, segments: TranscriptSegment[]): Extrac
           confidence_score: confidence,
           transcriptTimestamp: ts || undefined,
           speaker: spkr || undefined,
-          transcript_snippet: rawSnippet || String(item.transcript_snippet ?? '').slice(0, 150),
+          transcript_snippet: (finalSnippet || String(item.transcript_snippet ?? '')).slice(0, 220),
         };
       });
   } catch {

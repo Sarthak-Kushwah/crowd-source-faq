@@ -1,5 +1,6 @@
 // Import Mongoose to interact with MongoDB
 import mongoose, { Connection } from 'mongoose';
+import { logger } from '../utils/logger.js';
 
 // Cache connection in serverless environment
 let cachedConnection: Connection | null = null;
@@ -21,12 +22,11 @@ const connectDB = async (): Promise<Connection> => {
     })).connection;
 
     // Log a success message with the connected host name
-    console.log(`MongoDB Connected: ${cachedConnection.host}`);
+    logger.info(`MongoDB Connected: ${cachedConnection.host}`);
     return cachedConnection;
   } catch (error) {
-    // Log the error message if the connection fails
     const err = error as Error;
-    console.error(`MongoDB connection error: ${err.message}`);
+    logger.error(`MongoDB connection error: ${err.message}`);
     throw error;
   }
 };

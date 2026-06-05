@@ -415,3 +415,83 @@ export const acceptCommentAnswer = async (req: Request, res: Response): Promise<
     res.status(500).json({ message: 'Server error', error: (error as Error).message });
   }
 };
+
+// ─── PATCH /api/community/:id/comments/:commentId — Edit a comment ──────────
+// Author can edit their own comment; admin/moderator can edit any.
+// Cannot edit verified or expert answers.
+export const updateComment = async (req: Request, res: Response): Promise<void> => {
+  if (!req.user) { res.status(401).json({ message: 'Not authorized' }); return; }
+  try {
+    const { body } = req.body as { body?: string };
+    if (!body?.trim()) { res.status(400).json({ message: 'Comment body is required' }); return; }
+    if (body.length > 5000) { res.status(400).json({ message: 'Comment too long (max 5000 chars)' }); return; }
+
+    const post = await CommunityPost.findById(req.params.id);
+    if (!post) { res.status(404).json({ message: 'Post not found.' }); return; }
+
+    const comment = (post.comments as any).id(req.params.commentId) as any;
+    if (!comment) { res.status(404).json({ message: 'Comment not found.' }); return; }
+
+    const isAuthor = comment.author?.toString() === req.user!._id.toString();
+    const isPrivileged = req.user!.role === 'admin' || req.user!.role === 'moderator';
+
+    if (!isAuthor && !isPrivileged) {
+      res.status(403).json({ message: 'You cannot edit this comment.' }); return;
+    }
+    if (comment.verified || comment.isExpertAnswer) {
+      res.status(403).json({ message: 'Verified or expert answers cannot be edited.' }); return;
+    }
+
+    const sanitized = sanitizeHtml(body.trim());
+    comment.body = sanitized;
+    comment.updatedAt = new Date();
+    await post.save();
+
+    const updated = {
+      _id: comment._id,
+      body: comment.body,
+      updatedAt: comment.updatedAt,
+      author: comment.author,
+      createdAt: comment.createdAt,
+      depth: comment.depth,
+      parentId: comment.parentId,
+      upvotes: comment.upvotes,
+      downvotes: comment.downvotes,
+      verified: comment.verified,
+      isExpertAnswer: comment.isExpertAnswer,
+      isFirstResponder: comment.isFirstResponder,
+      firstResponderAwardedAt: comment.firstResponderAwardedAt,
+    };
+
+    res.json({ comment: updated });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// ─── DELETE /api/community/:id/comments/:commentId — Delete a comment ───────
+// Author can delete their own comment; admin/moderator can delete any.
+export const deleteComment = async (req: Request, res: Response): Promise<void> => {
+  if (!req.user) { res.status(401).json({ message: 'Not authorized' }); return; }
+  try {
+    const post = await CommunityPost.findById(req.params.id);
+    if (!post) { res.status(404).json({ message: 'Post not found.' }); return; }
+
+    const comment = (post.comments as any).id(req.params.commentId) as any;
+    if (!comment) { res.status(404).json({ message: 'Comment not found.' }); return; }
+
+    const isAuthor = comment.author?.toString() === req.user!._id.toString();
+    const isPrivileged = req.user!.role === 'admin' || req.user!.role === 'moderator';
+
+    if (!isAuthor && !isPrivileged) {
+      res.status(403).json({ message: 'You cannot delete this comment.' }); return;
+    }
+
+    await comment.deleteOne();
+    await post.save();
+
+    res.json({ message: 'Comment deleted.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};

@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useAuth } from '../hooks/useAuth';
 
 /**
  * AuthModalContext — global modal trigger + pending-action queue.
@@ -77,7 +78,8 @@ export function AuthModalProvider({ children, isAuthenticated }: ProviderProps) 
   }, []);
 
   // Whenever the user is authenticated, the modal should not be open.
-  // The pending action (if any) fires on the false→true transition.
+  // The pending action (if any) fires after the close animation (300ms) so
+  // the dialog/drawer that opens next isn't visible behind the fading modal.
   useEffect(() => {
     if (isAuthenticated) {
       if (isOpen) setIsOpen(false);
@@ -85,12 +87,14 @@ export function AuthModalProvider({ children, isAuthenticated }: ProviderProps) 
         setPrompt('');
         const action = pendingAction;
         setPendingAction(null);
-        // Run after a microtask so the modal close animation can start cleanly.
-        queueMicrotask(() => {
+        // Wait for the auth modal's fade-out animation (500ms max) to fully
+        // complete before running the pending action — otherwise a dialog
+        // rendered alongside App appears behind the fading modal backdrop.
+        setTimeout(() => {
           Promise.resolve(action()).catch(() => {
             // Swallow — gate callers should be best-effort.
           });
-        });
+        }, 600);
       }
     }
   }, [isAuthenticated, isOpen, pendingAction]);
@@ -124,16 +128,22 @@ export function useAuthModal(): AuthModalContextValue {
  *
  * The optional `prompt` is shown in the modal so the user knows why they
  * need to sign in ("Sign in to ask a question").
+ *
+ * Uses the same isAuthenticated signal as AuthModalProvider (AuthContext),
+ * so stale localStorage tokens don't bypass the auth check.
  */
 export function useAuthGate() {
   const { openModal, setPendingAction } = useAuthModal();
+  // Note: we deliberately call useAuth() inside useAuthGate rather than
+  // receiving isAuthenticated as a param — this avoids importing the hook
+  // in a context module and keeps the dependency graph clean.
+  const { isAuthenticated } = useAuth();
 
   return useCallback((action: PendingAction, prompt?: string) => {
     return () => {
-      // Read auth state lazily so the gate doesn't need to be re-bound on
-      // auth changes — it just consults the latest value at call time.
-      const isAuthed = !!window.localStorage.getItem('yaksha_token');
-      if (isAuthed) {
+      // Use the same auth signal as AuthModalProvider — stays in sync with
+      // /auth/me validation, so stale tokens don't bypass the gate.
+      if (isAuthenticated) {
         action();
         return;
       }
@@ -146,7 +156,7 @@ export function useAuthGate() {
       setPendingAction(action);
       openModal('signin');
     };
-  }, [openModal, setPendingAction]);
+  }, [isAuthenticated, openModal, setPendingAction]);
 }
 
 /**

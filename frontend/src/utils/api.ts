@@ -129,7 +129,7 @@ function sendToFileLog(level: string, message: string, meta?: Record<string, unk
   const short = meta
     ? `{ status: ${meta.status ?? '-'}, duration: ${meta.durationMs ?? '-'}ms, url: ${meta.url ?? '-'} }`
     : '';
-  console.log(`${prefix} [frontend] ${message} ${short}`);
+  console.info(`${prefix} [frontend] ${message} ${short}`);
   // Fire-and-forget to backend file log
   fetch(`${import.meta.env.VITE_API_URL || '/api'}/log`, {
     method: 'POST',
@@ -247,19 +247,69 @@ api.interceptors.response.use(
     }
 
     if (error.response && error.response.status === 401) {
+      // Spec: "Never show raw auth/token errors to users." Any 401 means the
+      // user tried a restricted action without (or with an expired) token —
+      // pop the sign-in modal so they can fix it. The current page is
+      // preserved so they land back where they were.
+      const hadToken = !!localStorage.getItem('yaksha_token');
       localStorage.removeItem('yaksha_token');
       localStorage.removeItem('yaksha_user');
 
-      // Open the auth modal in place. The provider also stores the current
-      // path as a "resume" hint so we can come back after re-auth. We avoid
-      // a full page navigation — the modal sits on top of whatever the user
-      // was doing, and on success the gate replays the pending action.
+      const prompt = hadToken
+        ? 'Your session has expired. Please sign in again.'
+        : 'Please sign in to continue.';
       window.dispatchEvent(new CustomEvent('authmodal:open', {
-        detail: { tab: 'signin', prompt: 'Your session has expired. Please sign in again.' },
+        detail: { tab: 'signin', prompt },
       }));
     }
     return Promise.reject(error);
   }
 );
+
+/**
+ * Map an Axios error to a user-friendly message. Strips raw backend strings
+ * like "Not authorized. Token missing." or "Session expired. Please log in
+ * again." and replaces them with the product copy the user should see.
+ *
+ * Usage:
+ *   } catch (e) {
+ *     setError(friendlyError(e, 'Could not save your answer.'));
+ *   }
+ *
+ * The fallback runs when the error is non-Axios, a network failure, or a
+ * 5xx — we never let a server-side message like "TypeError: cannot read
+ * property 'foo' of undefined" reach the user.
+ */
+export function friendlyError(err: unknown, fallback: string): string {
+  // Auth-related statuses — never echo the raw backend text. The modal
+  // already explains the situation; the toast just needs a short hint.
+  const status = (err as { response?: { status?: number } })?.response?.status;
+  if (status === 401) return 'Please sign in to continue.';
+  if (status === 403) return "You don't have permission to do that.";
+
+  // For 4xx (validation, not-found, etc.) we trust the backend's short
+  // message — it's already user-safe. We only swap it out if the message
+  // looks like a leaked auth-internal string.
+  if (status && status >= 400 && status < 500) {
+    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+    if (typeof msg === 'string' && msg.length > 0 && msg.length < 200) {
+      const lower = msg.toLowerCase();
+      if (
+        lower.includes('token') ||
+        lower.includes('not authorized') ||
+        lower.includes('not authenticated') ||
+        lower.includes('jwt') ||
+        lower.includes('forbidden')
+      ) {
+        return 'Please sign in to continue.';
+      }
+      return msg;
+    }
+  }
+
+  // 5xx / network / unknown — generic fallback. Logging the real error to
+  // the file log happens in the interceptor above; this is just UI text.
+  return fallback;
+}
 
 export default api;

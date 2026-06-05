@@ -37,6 +37,13 @@ import { getZoomHealth, recordZoomError } from '../utils/zoomHealth.js';
 function verifyZoomSignature(req: Request): boolean {
   const secret = process.env['ZOOM_WEBHOOK_SECRET_TOKEN'];
   if (!secret) {
+    // Fail closed in production — accepting unsigned webhooks in prod would
+    // let anyone create fake ZoomMeeting records and drain the AI quota.
+    // In dev/staging, fall open with a loud log so the developer notices.
+    if (process.env['NODE_ENV'] === 'production') {
+      logger.error('[Zoom] ZOOM_WEBHOOK_SECRET_TOKEN missing in production — rejecting webhook');
+      return false;
+    }
     logger.warn('[Zoom] ZOOM_WEBHOOK_SECRET_TOKEN not set — skipping signature verification (dev only)');
     return true;
   }

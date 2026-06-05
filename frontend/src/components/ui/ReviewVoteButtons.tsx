@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import api from '../../utils/api';
+import api, { friendlyError } from '../../utils/api';
 
 interface ReviewVoteButtonsProps {
   faqId: string;
@@ -39,7 +39,7 @@ export default function ReviewVoteButtons({
       setNeedsUpdate(needsUpdateVotes);
       onVoteUpdate?.(accurateVotes, needsUpdateVotes);
     } catch (e) {
-      console.error('Vote failed:', e);
+      console.error(friendlyError(e, 'Vote failed.'));
     } finally {
       setLoading(false);
     }
@@ -129,7 +129,7 @@ export default function ReviewVoteButtons({
             <button
               onClick={handleSubmitNeedsUpdate}
               disabled={loading}
-              className="flex-1 py-1.5 text-xs rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+              className="flex-1 py-1.5 text-xs rounded-lg bg-red-500 text-accent-text hover:bg-red-600 transition-colors disabled:opacity-50"
             >
               Submit
             </button>

@@ -10,6 +10,7 @@
  *   - Circuit breakers to prevent cascading failures
  */
 
+import crypto from 'crypto';
 import User from '../models/User.js';
 import { encrypt, decrypt } from './crypto.js';
 import { zoomOAuthCircuit, zoomApiCircuit, CircuitOpenError } from './circuitBreaker.js';
@@ -77,19 +78,77 @@ function decryptToken(encrypted: string): string {
 
 /**
  * Build the Zoom OAuth authorization URL for a given user.
- * The state param encodes the user's internal ID so we know who to link on callback.
+ * The state param is HMAC-signed with a server-side secret and includes an
+ * expiry timestamp — this prevents the OAuth-state-forgery attack where an
+ * attacker crafts `state=base64(victimUserId)` to link their own Zoom tokens
+ * to the victim's account (issue N1 in issues.md).
+ *
+ * Format:  base64url( userId | "." | expiryMs | "." | hmacSha256 )
+ * HMAC key: JWT_SECRET (already required by the rest of the app — no new env var)
+ * TTL:       5 minutes (typical OAuth flow finishes in <60s; anything older is stale)
  *
  * If a request object is provided, the redirect URI is built dynamically from the
  * request's host — this is what makes the OAuth flow work across multiple deploy
  * targets (ngrok, staging, prod) without editing ZOOM_REDIRECT_URI.
  */
+const STATE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+function getStateSecret(): string {
+  const v = process.env.JWT_SECRET;
+  if (!v) throw new Error('JWT_SECRET required to sign OAuth state');
+  return v;
+}
+
+/** Sign a state token for the given user. Returns the encoded `state` param. */
+export function signOAuthState(internalUserId: string): string {
+  const expiry = Date.now() + STATE_TTL_MS;
+  const payload = `${internalUserId}.${expiry}`;
+  const hmac = crypto
+    .createHmac('sha256', getStateSecret())
+    .update(payload)
+    .digest('base64url');
+  // base64url-encode the whole "payload.hmac" so the callback can decode safely
+  return Buffer.from(`${payload}.${hmac}`, 'utf8').toString('base64url');
+}
+
+/** Verify a state token, return the userId on success, null on any failure. */
+export function verifyOAuthState(state: string): string | null {
+  try {
+    const decoded = Buffer.from(state, 'base64url').toString('utf8');
+    const parts = decoded.split('.');
+    if (parts.length !== 3) return null;
+    const [userId, expiryStr, providedHmac] = parts;
+    const payload = `${userId}.${expiryStr}`;
+    const expectedHmac = crypto
+      .createHmac('sha256', getStateSecret())
+      .update(payload)
+      .digest('base64url');
+
+    // Constant-time comparison to prevent timing attacks
+    const a = Buffer.from(providedHmac);
+    const b = Buffer.from(expectedHmac);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+
+    // Reject expired states
+    const expiry = Number(expiryStr);
+    if (!Number.isFinite(expiry) || expiry < Date.now()) return null;
+
+    // userId must be a 24-char hex ObjectId
+    if (!/^[a-f0-9]{24}$/i.test(userId)) return null;
+
+    return userId;
+  } catch {
+    return null;
+  }
+}
+
 export function buildZoomAuthUrl(internalUserId: string, request?: { headers?: Record<string, string | string[] | undefined>; protocol?: string }): string {
   const redirectUri = buildDynamicRedirectUri(request);
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: getClientId(),
     redirect_uri: redirectUri,
-    state: Buffer.from(internalUserId).toString('base64'), // encode user ID in state
+    state: signOAuthState(internalUserId),
   });
   return `${ZOOM_AUTH_URL}?${params}`;
 }

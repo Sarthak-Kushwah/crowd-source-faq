@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../hooks/useNotifications';
-import api from '../../utils/api';
+import api, { friendlyError } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 
 interface TeaDrop {
@@ -63,7 +63,7 @@ export default function NotificationBell() {
       setTeaHasMore(res.data.hasMore);
       setTeaPage(pageNum);
     } catch (e) {
-      console.error(e);
+      console.error(friendlyError(e, 'Failed to load notifications.'));
     } finally {
       setTeaLoading(false);
     }
@@ -93,7 +93,7 @@ export default function NotificationBell() {
       setTeaDrops((prev) => prev.map((d) => ({ ...d, read: true })));
       setTeaUnread(0);
     } catch (e) {
-      console.error(e);
+      console.error(friendlyError(e, 'Failed to mark all read.'));
     }
   };
 
@@ -112,7 +112,7 @@ export default function NotificationBell() {
       setTeaDrops((prev) => prev.map((d) => (d._id === id ? { ...d, read: true } : d)));
       setTeaUnread((u) => Math.max(0, u - 1));
     } catch (e) {
-      console.error(e);
+      console.error(friendlyError(e, 'Failed to mark notification read.'));
     }
   };
 
@@ -140,14 +140,14 @@ export default function NotificationBell() {
       >
         <BellIcon hasUnread={totalUnread > 0} />
         {totalUnread > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-accent text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-md">
+          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-accent text-accent-text text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-md">
             {totalUnread > 99 ? '99+' : totalUnread}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 w-80 bg-white rounded-2xl border border-border shadow-float z-50 overflow-hidden animate-fade-in">
+        <div className="absolute right-0 top-12 w-80 bg-card rounded-2xl border border-border shadow-float z-50 overflow-hidden animate-fade-in">
           {/* Tabs */}
           <div className="flex border-b border-border/60">
             <button
@@ -160,7 +160,7 @@ export default function NotificationBell() {
             >
               🔔 General
               {unreadCount > 0 && (
-                <span className="bg-accent text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                <span className="bg-accent text-accent-text text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
                   {unreadCount}
                 </span>
               )}
@@ -175,7 +175,7 @@ export default function NotificationBell() {
             >
               ☕ Spill the Tea
               {teaUnread > 0 && (
-                <span className="bg-accent text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                <span className="bg-accent text-accent-text text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
                   {teaUnread}
                 </span>
               )}
@@ -210,7 +210,7 @@ export default function NotificationBell() {
                         className={`w-full text-left px-4 py-3 border-b border-border/30 hover:bg-bg transition-colors ${!notif.read ? 'bg-accent-light/20' : ''}`}
                       >
                         <div className="flex items-start gap-2.5">
-                          <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs mt-0.5 ${!notif.read ? 'bg-accent text-white' : 'bg-mist text-ink-faint'}`}>
+                          <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs mt-0.5 ${!notif.read ? 'bg-accent text-accent-text' : 'bg-mist text-ink-faint'}`}>
                             {notifIcon(notif.type)}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -276,7 +276,7 @@ export default function NotificationBell() {
                       >
                         <div className="flex items-start gap-2.5">
                           <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                            !drop.read && idx === 0 ? 'bg-accent text-white' : 'bg-mist text-ink-faint'
+                            !drop.read && idx === 0 ? 'bg-accent text-accent-text' : 'bg-mist text-ink-faint'
                           }`}>
                             {idx === 0 && !drop.read ? '☕' : '🍵'}
                           </div>

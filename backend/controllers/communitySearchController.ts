@@ -3,6 +3,7 @@ import CommunityPost, { ICommunityPost } from '../models/CommunityPost.js';
 import { generateEmbedding } from '../utils/embeddings.js';
 import { Request, Response } from 'express';
 import { computeRRF, applySearchThreshold, type SearchResultItem } from '../utils/search.js';
+import { logger } from '../utils/logger.js';
 
 const COLLECTION_NAME = CommunityPost.collection.name;
 
@@ -32,7 +33,7 @@ async function runTextSearch(queryStr: string, limit = 10): Promise<SearchResult
       .limit(limit)
       .toArray() as SearchResultItem[];
   } catch (error) {
-    console.warn(`Text search on '${COLLECTION_NAME}' failed: ${(error as Error).message}`);
+    logger.warn(`Text search on '${COLLECTION_NAME}' failed: ${(error as Error).message}`);
     return [];
   }
 }
@@ -70,7 +71,7 @@ async function runVectorSearch(queryEmbedding: number[], limit = 10): Promise<Se
       ])
       .toArray() as SearchResultItem[];
   } catch (error) {
-    console.warn(`Vector search on '${COLLECTION_NAME}' failed: ${(error as Error).message}`);
+    logger.warn(`Vector search on '${COLLECTION_NAME}' failed: ${(error as Error).message}`);
     return [];
   }
 }

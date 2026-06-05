@@ -10,6 +10,7 @@ import FAQ from '../models/FAQ.js';
 import CommunityPost from '../models/CommunityPost.js';
 import { generateEmbedding } from './embeddings.js';
 import { resolveProviderAsync } from './aiProvider.js';
+import { logger } from './logger.js';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -122,7 +123,7 @@ export async function detectDuplicatesWithAI(userQuestion: string): Promise<Dupl
     const raw = await aiChat(userQuestion, candidateList);
     return parseAIMatches(raw, candidates);
   } catch (err) {
-    console.warn(`[duplicateDetector] ${err}`);
+    logger.warn(`[duplicateDetector] ${(err as Error).message}`);
     return [];
   }
 }

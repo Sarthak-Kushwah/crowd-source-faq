@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import api from '../../utils/api';
+import api, { friendlyError } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 
 type TeaEventType = 'faq_published' | 'post_answered' | 'post_deleted' | 'post_answered_user';
@@ -86,7 +86,7 @@ export default function SpillTheTea() {
       setHasMore(res.data.hasMore);
       setPage(pageNum);
     } catch (e) {
-      console.error(e);
+      console.error(friendlyError(e, 'Failed to load notifications.'));
     } finally {
       setLoading(false);
     }
@@ -137,7 +137,7 @@ export default function SpillTheTea() {
       await api.patch('/notifications/tea/read-all');
       setDrops((prev) => prev.map((d) => ({ ...d, read: true })));
       setUnread(0);
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(friendlyError(e, 'Failed to mark notifications read.')); }
   };
 
   const handleMarkOneRead = async (id: string) => {
@@ -145,7 +145,7 @@ export default function SpillTheTea() {
       await api.patch(`/notifications/tea/${id}/read`);
       setDrops((prev) => prev.map((d) => (d._id === id ? { ...d, read: true } : d)));
       setUnread((u) => Math.max(0, u - 1));
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(friendlyError(e, 'Failed to mark notification read.')); }
   };
 
   const handleDropClick = (drop: TeaDrop) => {
@@ -171,7 +171,7 @@ export default function SpillTheTea() {
       >
         <span className="text-lg" style={{ fontSize: '1.15rem' }}>☕</span>
         {unread > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-accent text-white text-[9px] font-bold px-1 leading-none">
+          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-accent text-accent-text text-[9px] font-bold px-1 leading-none">
             {unread > 99 ? '99+' : unread}
           </span>
         )}
@@ -179,7 +179,7 @@ export default function SpillTheTea() {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute right-0 top-12 w-80 bg-white rounded-2xl border border-border shadow-float z-50 overflow-hidden animate-fade-in">
+        <div className="absolute right-0 top-12 w-80 bg-card rounded-2xl border border-border shadow-float z-50 overflow-hidden animate-fade-in">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
             <div className="flex items-center gap-2">
@@ -222,7 +222,7 @@ export default function SpillTheTea() {
                     >
                       <div className="flex items-start gap-2.5">
                         <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                          isFresh ? 'bg-accent text-white' : 'bg-mist text-ink-faint'
+                          isFresh ? 'bg-accent text-accent-text' : 'bg-mist text-ink-faint'
                         }`}>
                           {isFresh ? '☕' : meta.icon}
                         </div>
@@ -266,7 +266,7 @@ export default function SpillTheTea() {
 
       {/* Background-poll toast: new post_answered from Admin/AI */}
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl bg-ink text-white text-sm font-medium shadow-lg flex items-center gap-2 animate-fade-in">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl bg-ink text-accent-text text-sm font-medium shadow-lg flex items-center gap-2 animate-fade-in">
           <span>✅</span>
           <span>{toast.msg}</span>
         </div>

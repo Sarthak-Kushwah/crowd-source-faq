@@ -87,7 +87,7 @@ export default function AdminFAQs() {
       <AnimatePresence>{toast && <Toast toast={toast} />}</AnimatePresence>
 
       <div className="flex items-center justify-between">
-        <div><h2 className="text-lg font-semibold text-gray-900">FAQs</h2><p className="text-sm text-gray-500 mt-0.5">{total} total</p></div>
+        <p className="text-sm text-gray-500 -mt-2">{total} total</p>
         <button onClick={() => setAddModal(true)} className="px-4 py-2 rounded-md text-sm font-medium text-white bg-gray-900 hover:bg-gray-700 transition-colors">+ Add FAQ</button>
       </div>
 

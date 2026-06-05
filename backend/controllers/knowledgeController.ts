@@ -1,11 +1,15 @@
 import { type Request, type Response } from 'express';
+import mongoose from 'mongoose';
 import {
   processZoomMeetingForKnowledge,
   processHighUpvotePosts as extractHighUpvoteKnowledge,
   promoteToFAQ as promoteKnowledgeToFAQ,
   embedUnprocessedKnowledge,
+  searchKnowledge,
 } from '../services/knowledgeBase.js';
+import { runRag } from '../services/rag.js';
 import { TranscriptKnowledge } from '../models/TranscriptKnowledge.js';
+import { logger } from '../utils/logger.js';
 
 // ─── List all knowledge entries ──────────────────────────────────────────────
 
@@ -117,6 +121,117 @@ export const answerFromKnowledgeController = async (req: Request, res: Response)
     if (!result.answered) { res.status(404).json({ message: 'No matching knowledge found' }); return; }
     res.json(result);
   } catch (err) {
+    res.status(500).json({ message: (err as Error).message });
+  }
+};
+
+// ─── Ask AI: thin wrapper over the proper RAG pipeline ────────────────────────
+//
+// Delegates to services/rag.ts (runRag) which does vector + text + RRF fusion
+// across FAQs, Community, and TranscriptKnowledge. We only translate the
+// result into the shape the frontend AskAIButton consumes (sources → { kind,
+// title, snippet, score, href, id }).
+
+// Public — anonymous users get 5 free searches per browser (enforced on the
+// client via localStorage); logged-in users are unlimited. Backend abuse
+// protection lives in the per-IP rate limiter mounted on this route.
+export const askAIController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const question = String((req.body as { question?: string })?.question ?? '').trim();
+    if (question.length < 3) {
+      res.status(400).json({ message: 'Question must be at least 3 characters' });
+      return;
+    }
+
+    // Minimum-relevance thresholds per source type, because RRF scores (FAQ /
+    // community) max out around 0.020 while vector-search scores (knowledge)
+    // go up to 1.0. A single threshold either lets too much FAQ noise through
+    // or filters out the real KB hits. The numbers below are tuned against
+    // the live RRF and `searchKnowledge` ranges observed in practice.
+    const THRESHOLDS: Record<string, number> = {
+      faq: 0.025,        // top-rank RRF hit
+      community: 0.025,  // top-rank RRF hit
+      knowledge: 0.35,   // meaningful vector similarity
+    };
+    const DEFAULT_THRESHOLD = 0.05;
+
+    const t0 = Date.now();
+    let result: { answer: string; sources: Array<{ id: string; type: string; title: string; snippet: string; url: string; score: number }>; model: string };
+    let aiFailed = false;
+    try {
+      result = await runRag(question);
+    } catch (ragErr) {
+      // AI provider is down / rate-limited / unauthorized. The vector + text
+      // searches inside runRag also failed because they're the same call.
+      // Fall back to keyword search only (knowledge base), which doesn't
+      // depend on the AI provider. This way the user still sees relevant
+      // sources and can click through to the full FAQ/post.
+      logger.warn('[askAI] runRag failed, falling back to KB-only search', { error: (ragErr as Error).message });
+      const kbMatches = await searchKnowledge(question, 6);
+      result = {
+        answer: '',
+        model: 'fallback',
+        sources: kbMatches.map((m) => ({
+          id: m._id,
+          type: 'knowledge',
+          title: m.question,
+          snippet: m.answer,
+          url: `/faq?from-knowledge=${m._id}`,
+          score: m.score,
+        })),
+      };
+      aiFailed = true;
+    }
+    logger.info('[askAI] rag.completed', { ms: Date.now() - t0, sourceCount: result.sources.length, aiFailed });
+
+    // Translate RagSource → SourceHit shape for the frontend.
+    const sources = result.sources.map((s) => ({
+      kind: s.type,
+      title: s.title,
+      snippet: s.snippet,
+      score: Number(s.score.toFixed(4)),
+      href: s.url,
+      id: s.id,
+    }));
+
+    // Per-source-type threshold filter — strip the noise so the user (and
+    // the fallback snippet) see only genuinely relevant matches.
+    const relevantSources = sources.filter((s) => {
+      const t = (THRESHOLDS[s.kind] ?? DEFAULT_THRESHOLD);
+      return s.score >= t;
+    });
+
+    // Re-rank: only the relevant sources, sorted by score desc.
+    const ranked = [...relevantSources].sort((a, b) => b.score - a.score);
+
+    let answer = result.answer;
+    if (relevantSources.length === 0) {
+      answer = "I couldn't find anything in the FAQs, community, or your team's Zoom knowledge base that clearly answers this. Try rephrasing the question, or post a new community question.";
+    } else if (aiFailed || !result.answer || result.answer.trim().length < 10) {
+      // AI synthesis unavailable — show the top source's snippet directly
+      // and let the user click through to read the full entry.
+      const top = ranked[0];
+      answer = top.snippet + (ranked.length > 1
+        ? `\n\n(Showing the most relevant match — ${ranked.length} sources found. AI synthesis is temporarily unavailable; click a source card to read the full answer.)`
+        : `\n\n(AI synthesis is temporarily unavailable; click the source below to read the full answer.)`);
+    }
+
+    // Mark each source as relevant (above per-type threshold) so the
+    // frontend can dim/grey-out the noise.
+    res.json({
+      question,
+      answer,
+      sources: sources.map((s) => {
+        const t = (THRESHOLDS[s.kind] ?? DEFAULT_THRESHOLD);
+        return { ...s, aboveThreshold: s.score >= t };
+      }),
+      relevantCount: ranked.length,
+      sourceCount: sources.length,
+      model: result.model,
+      aiFailed,
+    });
+  } catch (err) {
+    logger.error('[askAI] failed', { error: (err as Error).message });
     res.status(500).json({ message: (err as Error).message });
   }
 };

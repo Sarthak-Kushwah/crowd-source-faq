@@ -20,6 +20,66 @@ import AiConfig from '../models/AiConfig.js';
 
 export type AIProvider = 'anthropic' | 'openai' | 'xai' | 'minimax';
 
+/** Per-pipeline (pipeline=faq_audit|auto_answer) provider override keys */
+export const PIPELINE_PROVIDER_KEY: Record<string, string> = {
+  faq_audit:    process.env.FAQ_AUDIT_PROVIDER    ?? '',
+  auto_answer:  process.env.AUTO_ANSWER_PROVIDER  ?? '',
+};
+export const PIPELINE_MODEL_KEY: Record<string, string> = {
+  faq_audit:    process.env.FAQ_AUDIT_MODEL       ?? '',
+  auto_answer:  process.env.AUTO_ANSWER_MODEL     ?? '',
+};
+
+/**
+ * Resolve effective AIProvider for a pipeline.
+ * Checks PIPELINE_PROVIDER_KEY first, then falls back to DEFAULT_PROVIDER.
+ */
+export function resolvePipelineProvider(pipeline: string): AIProvider {
+  const override = PIPELINE_PROVIDER_KEY[pipeline] as AIProvider | '';
+  if (override && isValidProvider(override)) return override;
+  // Fall back to the first provider that has an API key configured
+  if (process.env.ANTHROPIC_API_KEY) return 'anthropic';
+  if (process.env.OPENAI_API_KEY)    return 'openai';
+  if (process.env.XAI_API_KEY)       return 'xai';
+  if (process.env.MINIMAX_API_KEY)   return 'minimax';
+  return 'minimax'; // default — will fail gracefully at chat() with a clear error
+}
+
+/**
+ * Resolve effective model for a pipeline.
+ * Checks PIPELINE_MODEL_KEY first, then falls back to resolved provider's default model.
+ */
+export function resolvePipelineModel(pipeline: string, provider: AIProvider): string {
+  const override = PIPELINE_MODEL_KEY[pipeline];
+  if (override) return override;
+  return envModel(provider);
+}
+
+function isValidProvider(p: string): p is AIProvider {
+  return (PROVIDER_DEFAULTS as Record<string, unknown>)[p] !== undefined;
+}
+
+/**
+ * Build a full ProviderConfig for a named pipeline.
+ * Reads provider/model from per-pipeline env vars, falls back to global defaults.
+ * Does NOT round-trip through getProviderConfig to avoid duplicate async overhead.
+ */
+export async function getPipelineProviderConfig(pipeline: string): Promise<ProviderConfig> {
+  const provider = resolvePipelineProvider(pipeline);
+  const model    = resolvePipelineModel(pipeline, provider);
+  const db       = await loadDbOverrides();
+  const keyEnv   = { anthropic: 'ANTHROPIC_API_KEY', openai: 'OPENAI_API_KEY', xai: 'XAI_API_KEY', minimax: 'MINIMAX_API_KEY' }[provider] ?? '';
+  const apiKey   = (db[provider].apiKey || process.env[keyEnv] || '') as string;
+  const baseURL  = db[provider].baseURL || envBaseUrl(provider);
+  return {
+    ...PROVIDER_DEFAULTS[provider],
+    provider,
+    apiKey,
+    baseURL,
+    model,
+  };
+}
+
 export interface ProviderConfig {
   provider: AIProvider;
   apiKey: string;
@@ -267,3 +327,52 @@ export async function chatWithProvider(
 
 // Backward-compat export — used by aiController.testProvider via dynamic import
 export const chat = chatWithProvider;
+
+/**
+ * Direct chat using an already-resolved ProviderConfig.
+ * Does NOT re-resolve — uses exactly what getPipelineProviderConfig returned.
+ * Used by pipeline controllers (faqAudit, autoAnswer) that need per-pipeline
+ * provider/model overrides from env vars.
+ */
+export async function chatWithConfig(
+  config: ProviderConfig,
+  messages: { role: string; content: string }[],
+): Promise<string> {
+  const { provider, baseURL, apiKey, model, authHeader, needsAnthropicVersion } = config;
+  if (!apiKey) throw new Error(`No API key for provider '${provider}' — set ${provider.toUpperCase()}_API_KEY`);
+
+  if (provider === 'anthropic') {
+    const res = await fetch(`${baseURL}/messages`, {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'content-type': 'application/json',
+        'anthropic-version': '2023-06-01',
+        ...(needsAnthropicVersion ? { 'anthropic-version': '2023-06-01' } : {}),
+      },
+      body: JSON.stringify({ model, messages, max_tokens: 512 }),
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`${provider} error: ${err}`);
+    }
+    const data = await res.json() as { content?: { text?: string }[] };
+    return data.content?.[0]?.text ?? '';
+  }
+
+  // OpenAI / xAI / MiniMax — all use chat/completions
+  const res = await fetch(`${baseURL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      [authHeader]: `Bearer ${apiKey}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ model, messages }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`${provider} error: ${err}`);
+  }
+  const data = await res.json() as { choices?: { message?: { content?: string } }[] };
+  return data.choices?.[0]?.message?.content ?? '';
+}

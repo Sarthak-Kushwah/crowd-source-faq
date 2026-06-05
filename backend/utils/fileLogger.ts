@@ -51,7 +51,7 @@ function writeLine(line: string): void {
   }
 
   fs.appendFile(LOG_FILE, line + '\n', (err) => {
-    if (err) console.error('[fileLogger] Failed to write to main_log.txt:', err.message);
+    if (err) console.error(`[fileLogger] Failed to write to main_log.txt: ${(err as Error).message}`);
   });
 }
 

@@ -65,13 +65,17 @@ function StatusBadge({ status }: { status: ZoomInsight['status'] }) {
 }
 
 function ConfidenceBar({ score }: { score: number }) {
+  // Only show when meaningful — most pending-review insights come back with
+  // a 0% confidence because the AI clamps aggressively. Showing "1%" on every
+  // row was visually noisy and didn't help the admin make a decision.
+  if (!score || score < 30) return null;
   const color = score >= 80 ? 'bg-emerald-500' : score >= 60 ? 'bg-blue-500' : 'bg-amber-500';
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden max-w-[80px]">
+    <div className="inline-flex items-center gap-1.5" title={`AI confidence: ${Math.round(score)}%`}>
+      <div className="h-1 w-12 bg-gray-100 rounded-full overflow-hidden">
         <div className={`h-full ${color} rounded-full`} style={{ width: `${score}%` }} />
       </div>
-      <span className="text-xs text-gray-500 font-medium">{Math.round(score)}%</span>
+      <span className="text-[10px] text-gray-400 font-medium">{Math.round(score)}%</span>
     </div>
   );
 }
@@ -178,13 +182,9 @@ export default function AdminZoomInsights() {
   ];
 
   return (
-    <AdminLayout>
+    <>
       <div className="space-y-5 max-w-5xl">
-        {/* Header */}
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">Zoom Insights</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Review AI-extracted FAQs and announcements before publishing</p>
-        </div>
+        <p className="text-sm text-gray-500 -mt-2">Review AI-extracted FAQs and announcements before publishing</p>
 
         {/* Stats row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -270,14 +270,19 @@ export default function AdminZoomInsights() {
                         <p className="text-sm font-semibold text-gray-900">{insight.question}</p>
                       )}
 
-                      {/* Answer / Content */}
-                      <p className="text-sm text-gray-700">{insight.answer_or_content}</p>
+                      {/* Answer / Content — primary content */}
+                      <p className="text-sm text-gray-900 leading-relaxed">{insight.answer_or_content}</p>
 
-                      {/* Transcript snippet */}
-                      {insight.transcript_snippet && (
-                        <p className="text-xs text-gray-400 italic pl-3 border-l-2 border-gray-200 max-w-xl">
-                          "{insight.transcript_snippet}"
-                        </p>
+                      {/* Transcript snippet — supporting context, only if it adds value */}
+                      {insight.transcript_snippet && insight.transcript_snippet.length > 20 && (
+                        <details className="text-xs text-gray-500">
+                          <summary className="cursor-pointer hover:text-gray-700 select-none pl-3 border-l-2 border-gray-200 italic">
+                            Show transcript excerpt
+                          </summary>
+                          <p className="mt-1.5 pl-3 border-l-2 border-gray-200 italic max-w-2xl">
+                            "{insight.transcript_snippet}"
+                          </p>
+                        </details>
                       )}
 
                       {/* Source meeting */}
@@ -361,6 +366,6 @@ export default function AdminZoomInsights() {
           )}
         </div>
       </div>
-    </AdminLayout>
+    </>
   );
 }

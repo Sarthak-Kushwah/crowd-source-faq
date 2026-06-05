@@ -7,12 +7,12 @@ export default function CTA() {
   return (
     <section className="mt-8 sm:mt-14 mb-6 sm:mb-8">
       <div className="bg-card rounded-2xl border border-border p-5 sm:p-8 md:p-10 flex flex-col md:flex-row items-center justify-between gap-4 sm:gap-6 relative overflow-hidden">
-        <svg className="absolute top-4 right-8" width="50" height="35" viewBox="0 0 50 35" style={{ opacity: 0.07, pointerEvents: 'none' }}>
-          <path d="M5 28 Q15 5 28 18 Q42 32 48 8" stroke="#1f1f1f" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-          <path d="M38 32 L46 26 L42 22" stroke="#1f1f1f" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+        <svg className="absolute top-4 right-8 text-ink-faint" width="50" height="35" viewBox="0 0 50 35" style={{ opacity: 0.10, pointerEvents: 'none' }}>
+          <path d="M5 28 Q15 5 28 18 Q42 32 48 8" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+          <path d="M38 32 L46 26 L42 22" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
-        <svg className="absolute bottom-8 left-[45%]" width="30" height="20" viewBox="0 0 30 20" style={{ opacity: 0.06, pointerEvents: 'none' }}>
-          <path d="M5 15 L15 5 L25 15" stroke="#1f1f1f" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+        <svg className="absolute bottom-8 left-[45%] text-ink-faint" width="30" height="20" viewBox="0 0 30 20" style={{ opacity: 0.08, pointerEvents: 'none' }}>
+          <path d="M5 15 L15 5 L25 15" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
 
         <div className="flex items-center gap-5">
@@ -43,9 +43,22 @@ export default function CTA() {
 
         <button
           onClick={() => navigate('/community')}
-          className="flex-shrink-0 w-full sm:w-auto px-7 py-3 sm:py-3.5 bg-ink text-white text-sm font-semibold rounded-xl hover:bg-ink/85 hover:shadow-lg transition-all cursor-pointer text-center"
+          className="search-ask-btn flex-shrink-0 w-full sm:w-auto cursor-pointer text-center"
         >
-          Ask the Community 
+          Ask the Community
+          <svg
+            className="search-ask-btn-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <line x1="5" y1="12" x2="19" y2="12" />
+            <polyline points="12 5 19 12 12 19" />
+          </svg>
         </button>
       </div>
     </section>

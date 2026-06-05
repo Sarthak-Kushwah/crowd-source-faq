@@ -279,12 +279,22 @@ export async function runRag(question: string): Promise<RagResult> {
 
   // Call the LLM. We use the same provider resolution as duplicate detection
   // and knowledge extraction so the same AI key chain powers the assistant.
-  const cfg = await resolveProviderAsync();
-  const t1 = Date.now();
-  const answer = await chatCompletion(cfg, prompt);
-  logger.info('rag.completion.done', { ms: Date.now() - t1, model: cfg.model, sources: sources.length });
+  // If the AI fails (provider down / 403 / rate-limited), we still return
+  // the sources so the frontend can show the top snippet as a fallback.
+  let answer = '';
+  let model = 'fallback';
+  try {
+    const cfg = await resolveProviderAsync();
+    const t1 = Date.now();
+    answer = await chatCompletion(cfg, prompt);
+    model = cfg.model;
+    logger.info('rag.completion.done', { ms: Date.now() - t1, model: cfg.model, sources: sources.length });
+  } catch (llmErr) {
+    logger.warn('rag.completion.failed', { error: (llmErr as Error).message });
+    answer = sources[0]?.snippet ?? '';
+  }
 
-  return { answer, sources, model: cfg.model };
+  return { answer, sources, model };
 }
 
 /**

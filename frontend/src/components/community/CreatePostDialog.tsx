@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Button from '../ui/Button';
-import api from '../../utils/api';
+import api, { friendlyError } from '../../utils/api';
 import type { Post } from '../../types/ui';
+import { useAuth } from '../../hooks/useAuth';
+import { useAuthModal } from '../../context/AuthModalContext';
 import { useCloudinaryUpload, buildTransformedUrl, type CloudinaryAsset } from '../../hooks/useCloudinaryUpload';
 
 interface CreatePostDialogProps {
@@ -11,7 +14,17 @@ interface CreatePostDialogProps {
 }
 
 export default function CreatePostDialog({ onClose, onCreated, prefillTitle = '' }: CreatePostDialogProps) {
+  const { user } = useAuth();
+  const { openModal } = useAuthModal();
+  // Guard: if somehow rendered without an authenticated user, close dialog and show sign-in.
+  // NOTE: onClose resets showCreate=false in the parent, preventing re-render loops.
+  if (!user) {
+    onClose();
+    openModal('signin');
+    return null;
+  }
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const navigate = useNavigate();
   const DRAFT_KEY = 'yaksha_post_draft';
 
   // ── Cloudinary attachments ──
@@ -185,8 +198,7 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
       onCreated(res.data.post, dupResult);
       dialogRef.current?.close();
     } catch (err) {
-      const errObj = err as { response?: { data?: { message?: string } } };
-      setError(errObj.response?.data?.message || 'Failed to post. Please try again.');
+      setError(friendlyError(err, 'Failed to post. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -253,18 +265,50 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
 
           {duplicateMatch && duplicateMatch.isDuplicate && duplicateMatch.matches.length > 0 && (
             <div className="faq-match-banner">
-              <span>📖</span>
-              <div>
-                <p className="font-medium">Similar question found!</p>
-                {duplicateMatch.matches.slice(0, 3).map((m: any, i: number) => (
-                  <p key={i} className="text-xs mt-0.5 opacity-80">
-                    {m.source === 'faq' ? '📋 FAQ' : '💬 Community'}: <strong>"{m.question || m.title}"</strong>
-                    {m.score && <span className="text-ink-faint"> ({(m.score * 100).toFixed(0)}% match)</span>}
-                  </p>
-                ))}
-                {duplicateMatch.matches.some((m: any) => m.source === 'faq') && (
-                  <a href="/faq" className="text-xs mt-1 inline-block">→ Check FAQ for answer</a>
-                )}
+              <div className="flex items-center gap-1.5 mb-2">
+                <span>📖</span>
+                <p className="font-medium text-sm">Similar question found!</p>
+                <span className="ml-auto text-[10px] text-ink-faint">Click to view</span>
+              </div>
+              <div className="space-y-1">
+                {duplicateMatch.matches.slice(0, 3).map((m: any, i: number) => {
+                  // Decide where to send the user
+                  const href = m.source === 'faq'
+                    ? `/faq/${m._id}`
+                    : m.source === 'community'
+                      ? `/community?post=${m._id}`
+                      : `/faq/${m._id}`;
+                  const icon = m.source === 'faq' ? '📋' : m.source === 'community' ? '💬' : '🧠';
+                  const label = m.source === 'faq' ? 'FAQ' : m.source === 'community' ? 'Community' : 'Knowledge';
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => {
+                        // Close dialog and navigate to the existing item
+                        dialogRef.current?.close();
+                        navigate(href);
+                      }}
+                      className="w-full text-left flex items-start gap-2 px-2.5 py-1.5 rounded-lg bg-card/70 hover:bg-card border border-amber-200 hover:border-amber-400 hover:shadow-sm transition-all group cursor-pointer"
+                    >
+                      <span className="shrink-0 mt-0.5">{icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-700">{label}</span>
+                          {m.score && (
+                            <span className="text-[10px] text-ink-faint">{(m.score * 100).toFixed(0)}% match</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-ink-soft group-hover:text-ink line-clamp-1">
+                          "{m.question || m.title}"
+                        </p>
+                      </div>
+                      <svg className="shrink-0 mt-1 w-3 h-3 text-ink-faint group-hover:text-amber-600 group-hover:translate-x-0.5 transition-all" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 18l6-6-6-6"/>
+                      </svg>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -341,7 +385,7 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
                     type="button"
                     onClick={() => removeAttachment(a.publicId)}
                     aria-label="Remove attachment"
-                    className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-ink/70 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-ink/70 text-accent-text text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     ×
                   </button>

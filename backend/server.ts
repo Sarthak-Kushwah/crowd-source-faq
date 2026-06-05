@@ -11,6 +11,8 @@ import faqRoutes from './routes/faq.js';
 import communityRoutes from './routes/community.js';
 import searchRoutes from './routes/search.js';
 import adminRoutes from './routes/admin.js';
+import adminAuditRoutes from './routes/adminAudit.js';
+import adminAutoAnswerRoutes from './routes/adminAutoAnswer.js';
 import analyticsRoutes from './routes/analytics.js';
 import notificationRoutes from './routes/notification.js';
 import teaRoutes from './routes/tea.js';
@@ -18,11 +20,14 @@ import reputationRoutes from './routes/reputation.js';
 import moderationRoutes from './routes/moderation.js';
 import zoomRoutes from './routes/zoom.js';
 import knowledgeRoutes from './routes/knowledge.js';
+import askAiRoutes from './routes/askAi.js';
 import uploadRoutes from './routes/upload.js';
 import { ingestFrontendLog } from './utils/fileLogger.js';
 import { logger } from './utils/logger.js';
 import { requestLogger } from './utils/requestLogger.js';
 import { startEscalationScheduler, stopEscalationScheduler } from './controllers/escalationController.js';
+import { runScheduledAutoAnswer, stopAutoAnswerScheduler } from './controllers/autoAnswerController.js';
+import { runScheduledFAQAudit, stopFAQAuditScheduler } from './controllers/faqAuditController.js';
 import { runFreshnessCheck } from './controllers/freshnessController.js';
 import { runPromotionCycle } from './services/promotionService.js';
 import { getMetrics } from './utils/metrics.js';
@@ -123,6 +128,8 @@ app.use('/api/faq', faqRoutes);
 app.use('/api/community', communityRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin', adminAutoAnswerRoutes);
+app.use('/api/admin', adminAuditRoutes);
 app.use('/api/reputation', reputationRoutes);
 app.use('/api/moderation', moderationRoutes);
 app.use('/api/analytics', analyticsRoutes);
@@ -130,6 +137,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/notifications/tea', teaRoutes);
 app.use('/api/zoom', zoomRoutes);
 app.use('/api/knowledge', knowledgeRoutes);
+app.use('/api/ask-ai', askAiRoutes);
 app.use('/api/upload', uploadRoutes);
 
 // 6. Health Check Endpoint
@@ -247,8 +255,8 @@ function validateEnv(): void {
   }
 
   if (errors.length > 0) {
-    console.error('Environment validation failed:');
-    errors.forEach(e => console.error(`  - ${e}`));
+    logger.error('Environment validation failed:');
+    errors.forEach(e => logger.error(`  - ${e}`));
     process.exit(1);
   }
 }
@@ -268,6 +276,8 @@ if (process.env.NODE_ENV !== 'production') {
     }
 
     startEscalationScheduler();
+    runScheduledAutoAnswer().catch((err) => logger.error(`[autoAnswer] Startup: ${(err as Error).message}`));
+    runScheduledFAQAudit().catch((err) => logger.error(`[faqAudit] Startup: ${(err as Error).message}`));
 
     // Start promotion scheduler — every 15 minutes, idempotent
     const promotionInterval = setInterval(runPromotionCycle, 15 * 60 * 1000);
@@ -300,6 +310,8 @@ if (process.env.NODE_ENV !== 'production') {
       clearInterval(freshnessInterval);
       clearInterval(retentionInterval);
       stopEscalationScheduler();
+      stopAutoAnswerScheduler();
+      stopFAQAuditScheduler();
     };
     process.on('SIGTERM', cleanup);
     process.on('SIGINT', cleanup);

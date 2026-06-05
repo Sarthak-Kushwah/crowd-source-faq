@@ -66,13 +66,13 @@ export default function SearchFeedback({ searchQuery, resultFaqId }: SearchFeedb
             <p className="flex-1 text-sm text-ink">Did this answer your question?</p>
             <button
               onClick={handleYes}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-accent text-white text-xs font-semibold hover:bg-accent/90 transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-accent text-accent-text text-xs font-semibold hover:bg-accent/90 transition-colors"
             >
               <span>👍</span> Yes, I am good
             </button>
             <button
               onClick={handleNo}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-border bg-white text-xs font-semibold text-ink hover:bg-mist transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-border bg-card text-xs font-semibold text-ink hover:bg-mist transition-colors"
             >
               No, I need more help
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -109,7 +109,7 @@ export default function SearchFeedback({ searchQuery, resultFaqId }: SearchFeedb
               <button
                 type="submit"
                 disabled={feedback.trim().length < 10 || loading}
-                className="flex-1 py-2.5 rounded-full bg-accent text-white text-xs font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 rounded-full bg-accent text-accent-text text-xs font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <><span className="w-3 h-3 border border-white/40 border-t-white rounded-full animate-spin inline-block" /> Submitting...</>

@@ -46,7 +46,7 @@ export default function AdminCommunity() {
   return (
     <div className="space-y-4 max-w-6xl">
       <AnimatePresence>{toast && <Toast toast={toast} />}</AnimatePresence>
-      <div><h2 className="text-lg font-semibold text-gray-900">Community</h2><p className="text-sm text-gray-500 mt-0.5">{total} total posts</p></div>
+      <p className="text-sm text-gray-500 -mt-2">{total} total posts</p>
 
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[160px]">

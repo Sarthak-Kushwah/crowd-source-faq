@@ -23,6 +23,7 @@ import User from '../models/User.js';
 import Notification from '../models/Notification.js';
 import { logAction } from './adminController.js';
 import { escalationsTotal } from '../utils/metrics.js';
+import { logger } from '../utils/logger.js';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 // Threshold in days after which an unanswered post is auto-escalated.
@@ -55,14 +56,14 @@ export function startEscalationScheduler(): void {
   escalationIntervalHandle = setInterval(() => {
     // Run fire-and-forget — errors are logged inside the functions.
     runUnansweredEscalationCheck().catch((err) => {
-      console.error('[escalation] Scheduler error:', err);
+      logger.error(`[escalation] Scheduler error: ${(err as Error).message}`);
     });
     runTimeTrialCheck().catch((err) => {
-      console.error('[time-trial] Scheduler error:', err);
+      logger.error(`[time-trial] Scheduler error: ${(err as Error).message}`);
     });
   }, ms);
 
-  console.log(
+  logger.info(
     `[escalation] Scheduler started — checking every ${CHECK_INTERVAL_MINUTES}m ` +
     `for posts unanswered > ${UNANSWERED_ESCALATION_DAYS}d`
   );
@@ -73,7 +74,7 @@ export function stopEscalationScheduler(): void {
   if (escalationIntervalHandle) {
     clearInterval(escalationIntervalHandle);
     escalationIntervalHandle = null;
-    console.log('[escalation] Scheduler stopped.');
+    logger.info('[escalation] Scheduler stopped.');
   }
 }
 
@@ -130,7 +131,7 @@ export async function runUnansweredEscalationCheck(): Promise<void> {
 
   escalationsTotal.inc({ count: eligible.length });
 
-  console.log(
+  logger.info(
     `[escalation] Auto-escalated ${eligible.length} unanswered post${eligible.length === 1 ? '' : 's'}.`
   );
 }
@@ -170,7 +171,7 @@ export async function runTimeTrialCheck(): Promise<void> {
     }
   );
 
-  console.log(
+  logger.info(
     `[time-trial] Activated ${eligible.length} Time-Trial post${eligible.length === 1 ? '' : 's'}.`
   );
 }

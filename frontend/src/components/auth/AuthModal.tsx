@@ -13,6 +13,11 @@ type Tab = 'signin' | 'register';
  * - ESC key, click on backdrop, or successful submit all close it.
  * - On success, the parent AuthModalProvider detects the auth-state flip
  *   and replays any pending action that was stashed by useAuthGate().
+ *
+ * Closing: when asked to close the modal starts a fade-out animation
+ * (controlled via the "closing" state + a 500ms timer). The DOM node
+ * stays alive through the animation so sibling dialogs that open in
+ * response don't render on top of the fading backdrop.
  */
 export default function AuthModal() {
   const { isOpen, initialTab, closeModal, prompt } = useAuthModal();
@@ -29,36 +34,75 @@ export default function AuthModal() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // "closing" keeps the DOM node alive through the fade-out animation so
+  // sibling dialogs (e.g. CreatePostDialog) don't appear on top of the
+  // fading backdrop. Once the animation timer expires, the component
+  // returns null and the provider's closeModal is considered complete.
+  const [closing, setClosing] = useState(false);
+  const closeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Sync the tab when the modal opens with a different starting tab.
   useEffect(() => {
     if (isOpen) {
       setTab(initialTab);
       setError('');
+      setClosing(false);
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
     }
   }, [isOpen, initialTab]);
 
   // ESC closes the modal.
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen && !closing) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeModal();
+      if (e.key === 'Escape' && !closing) closeModal();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [isOpen, closeModal]);
+  }, [isOpen, closing, closeModal]);
 
-  // Lock body scroll while the modal is open so the page behind doesn't
-  // bob around. Restore on close.
+  // Lock body scroll while the modal is open (or animating out).
   useEffect(() => {
-    if (!isOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [isOpen]);
+    if (isOpen || closing) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [isOpen, closing]);
 
-  if (!isOpen) return null;
+  // After the fade-out animation (500ms), truly unmount.
+  // The provider's closeModal sets isOpen=false, which triggers this.
+  useEffect(() => {
+    if (!isOpen && !closing) return;
+    if (!isOpen && closing) {
+      closeTimerRef.current = setTimeout(() => {
+        setClosing(false);
+        closeTimerRef.current = null;
+      }, 500);
+      return () => {
+        if (closeTimerRef.current) {
+          clearTimeout(closeTimerRef.current);
+          closeTimerRef.current = null;
+        }
+      };
+    }
+  }, [isOpen, closing]);
+
+  // Start the closing animation. Called when the user dismisses the modal
+  // (ESC, backdrop click, close button). Triggers isOpen=false in the
+  // provider, which fires the pending action (e.g. open CreatePostDialog).
+  const handleClose = () => {
+    if (closing) return;
+    setClosing(true);
+    closeModal(); // sets isOpen=false → provider fires pending action after 350ms
+  };
+
+  // Don't render until opened at least once; stay alive through closing
+  // animation so sibling dialogs don't z-index above the fading backdrop.
+  if (!isOpen && !closing) return null;
 
   const handleLoginChange = (e: ChangeEvent<HTMLInputElement>) => {
     setLoginForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -79,8 +123,12 @@ export default function AuthModal() {
     setLoading(true);
     try {
       await login(loginForm.email.trim(), loginForm.password);
-      // The AuthModalProvider watches isAuthenticated and will close the
-      // modal + replay any pending action on the false→true transition.
+      // Set closing=true + closeModal() — the sequence matters.
+      // closing=true keeps the DOM alive (fade animation)
+      // closeModal() sets isOpen=false so the provider's effect can detect
+      // the state change and fire the pending action.
+      setClosing(true);
+      closeModal();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
       setError(axiosErr.response?.data?.message || 'Login failed. Please try again.');
@@ -110,6 +158,11 @@ export default function AuthModal() {
         registerForm.email.trim(),
         registerForm.password
       );
+      // Same as handleLoginSubmit — set closing=true + closeModal()
+      // so the provider's effect sees the isOpen transition and fires the
+      // pending action, while the fade animation plays out.
+      setClosing(true);
+      closeModal();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
       setError(axiosErr.response?.data?.message || 'Registration failed. Please try again.');
@@ -121,15 +174,13 @@ export default function AuthModal() {
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center px-4 animate-fade-in"
-      // Backdrop: heavy blur + tint over the page underneath.
       style={{
         backgroundColor: 'rgba(15, 15, 15, 0.45)',
         backdropFilter: 'blur(14px) saturate(1.4)',
         WebkitBackdropFilter: 'blur(14px) saturate(1.4)',
       }}
       onClick={(e) => {
-        // Click outside the card closes the modal.
-        if (e.target === e.currentTarget) closeModal();
+        if (e.target === e.currentTarget) handleClose();
       }}
       role="dialog"
       aria-modal="true"
@@ -150,7 +201,7 @@ export default function AuthModal() {
             )}
           </div>
           <button
-            onClick={closeModal}
+            onClick={handleClose}
             aria-label="Close"
             className="w-7 h-7 flex items-center justify-center rounded-full text-ink-faint hover:text-ink hover:bg-black/[0.04] transition-colors -mt-1 -mr-1"
           >
@@ -166,7 +217,7 @@ export default function AuthModal() {
           <button
             onClick={() => { setTab('signin'); setError(''); }}
             className={`flex-1 py-1.5 text-xs font-semibold rounded-full transition-colors ${
-              tab === 'signin' ? 'bg-white text-ink shadow-subtle' : 'text-ink-soft hover:text-ink'
+              tab === 'signin' ? 'bg-card text-ink shadow-subtle' : 'text-ink-soft hover:text-ink'
             }`}
           >
             Sign in
@@ -174,7 +225,7 @@ export default function AuthModal() {
           <button
             onClick={() => { setTab('register'); setError(''); }}
             className={`flex-1 py-1.5 text-xs font-semibold rounded-full transition-colors ${
-              tab === 'register' ? 'bg-white text-ink shadow-subtle' : 'text-ink-soft hover:text-ink'
+              tab === 'register' ? 'bg-card text-ink shadow-subtle' : 'text-ink-soft hover:text-ink'
             }`}
           >
             Get started

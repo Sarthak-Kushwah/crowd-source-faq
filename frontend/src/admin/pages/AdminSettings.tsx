@@ -42,7 +42,7 @@ export default function AdminSettings() {
   return (
     <div className="space-y-5 max-w-xl">
       {toast && <Toast toast={toast} />}
-      <div><h2 className="text-lg font-semibold text-gray-900">Settings</h2><p className="text-sm text-gray-500 mt-0.5">Manage your profile</p></div>
+      <p className="text-sm text-gray-500 -mt-2">Manage your profile</p>
 
       {/* Profile */}
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">

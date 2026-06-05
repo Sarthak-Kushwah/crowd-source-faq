@@ -132,8 +132,7 @@ export default function AdminModeration() {
     <div className="space-y-5 max-w-4xl">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Moderation</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Manage bans, suspensions, warnings, and escalated questions</p>
+          <p className="text-sm text-gray-500">Manage bans, suspensions, warnings, and escalated questions</p>
         </div>
         {/* Tab switcher */}
         <div className="flex rounded-md border border-gray-200 overflow-hidden text-xs font-medium shrink-0">

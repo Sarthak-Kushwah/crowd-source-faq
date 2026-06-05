@@ -16,6 +16,7 @@ import FAQ from '../models/FAQ.js';
 import { generateEmbedding } from '../utils/embeddings.js';
 import { resolveProviderAsync } from '../utils/aiProvider.js';
 import { dispatchNotification } from '../utils/notificationDispatcher.js';
+import { logger } from '../utils/logger.js';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -28,7 +29,7 @@ const KNOWLEDGE_EMBEDDING_BATCH = 10;
  * Low-level chat completion using the active provider.
  * Uses aiProvider.ts to avoid duplicating provider detection logic.
  */
-async function aiChat(
+export async function aiChat(
   messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
   maxTokens = 1024,
   temperature = 0.1
@@ -137,7 +138,7 @@ Return a JSON array (no markdown), each item:
         transcriptSnippet: q.snippet ?? '',
       }));
   } catch (err) {
-    console.error('[knowledgeBase] AI extraction failed:', (err as Error).message);
+    logger.error(`[knowledgeBase] AI extraction failed: ${(err as Error).message}`);
     return [];
   }
 }
@@ -147,7 +148,7 @@ Return a JSON array (no markdown), each item:
 export async function processZoomMeetingForKnowledge(meetingId: string): Promise<number> {
   const meeting = await ZoomMeeting.findById(meetingId);
   if (!meeting || !meeting.rawTranscriptText) {
-    console.warn(`[knowledgeBase] Meeting ${meetingId} has no transcript`);
+    logger.warn(`[knowledgeBase] Meeting ${meetingId} has no transcript`);
     return 0;
   }
 
@@ -156,7 +157,7 @@ export async function processZoomMeetingForKnowledge(meetingId: string): Promise
     sourceId: meeting._id,
   });
   if (existing > 0) {
-    console.log(`[knowledgeBase] Meeting ${meetingId} already processed (${existing} entries)`);
+    logger.info(`[knowledgeBase] Meeting ${meetingId} already processed (${existing} entries)`);
     return 0;
   }
 
@@ -195,13 +196,13 @@ export async function processZoomMeetingForKnowledge(meetingId: string): Promise
       const emb = await generateEmbedding(text);
       await TranscriptKnowledge.updateOne({ _id: doc._id }, { embedding: emb });
     } catch (err) {
-      console.warn(`[knowledgeBase] Inline embed failed for ${doc._id}: ${(err as Error).message}`);
+      logger.warn(`[knowledgeBase] Inline embed failed for ${(doc as Record<string, unknown>)._id}: ${(err as Error).message}`);
     }
   }));
 
   await ZoomMeeting.updateOne({ _id: meeting._id }, { insightCount: qaPairs.length });
 
-  console.log(`[knowledgeBase] Extracted + embedded ${qaPairs.length} QA pairs from meeting ${meetingId}`);
+  logger.info(`[knowledgeBase] Extracted + embedded ${qaPairs.length} QA pairs from meeting ${meetingId}`);
   return qaPairs.length;
 }
 
@@ -229,7 +230,7 @@ export async function processHighUpvotePosts(): Promise<number> {
   const unprocessed = posts.filter((p) => !processed.has(p._id.toString()));
   if (unprocessed.length === 0) return 0;
 
-  console.log(`[knowledgeBase] Processing ${unprocessed.length} high-upvote posts`);
+  logger.info(`[knowledgeBase] Processing ${unprocessed.length} high-upvote posts`);
 
   const entries = unprocessed.map((post) => ({
     question: post.title,
@@ -414,7 +415,7 @@ export async function embedUnprocessedKnowledge(): Promise<number> {
       );
       embedded++;
     } catch (err) {
-      console.warn(`[knowledgeBase] Embed failed for ${(entry as Record<string, unknown>)._id}: ${(err as Error).message}`);
+      logger.warn(`[knowledgeBase] Embed failed for ${(entry as Record<string, unknown>)._id}: ${(err as Error).message}`);
     }
     await new Promise((r) => setTimeout(r, 200));
   }

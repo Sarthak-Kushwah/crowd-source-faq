@@ -88,7 +88,7 @@ export default function ReportFAQButton({ item }: ReportFAQButtonProps) {
                   <button
                     type="submit"
                     disabled={reason.trim().length < 10 || loading}
-                    className="flex-1 py-2.5 rounded-full bg-accent text-white text-xs font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="flex-1 py-2.5 rounded-full bg-accent text-accent-text text-xs font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {loading ? (
                       <>

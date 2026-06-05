@@ -3,6 +3,7 @@ import { Types } from 'mongoose';
 import FAQ from '../models/FAQ.js';
 import FreshReviewVote from '../models/FreshReviewVote.js';
 import FreshReviewLog, { type FreshReviewEventType } from '../models/FreshReviewLog.js';
+import { logger } from '../utils/logger.js';
 
 // Configurable thresholds from env (with defaults)
 const VERIFY_THRESHOLD = parseInt(process.env['FAQ_VERIFY_THRESHOLD'] || '3');
@@ -24,7 +25,7 @@ async function logEvent(
   try {
     await FreshReviewLog.create({ event, faqId, metadata });
   } catch (e) {
-    console.warn('FreshReviewLog failed:', (e as Error).message);
+    logger.warn(`FreshReviewLog failed: ${(e as Error).message}`);
   }
 }
 
@@ -441,7 +442,7 @@ export const runFreshnessCheck = async (): Promise<void> => {
     });
 
     if (due.length === 0) {
-      console.log('[freshness] No FAQs due for review.');
+      logger.info('[freshness] No FAQs due for review.');
       return;
     }
 
@@ -458,7 +459,7 @@ export const runFreshnessCheck = async (): Promise<void> => {
         reviewIntervalDays: f.reviewIntervalDays,
         reviewCycle: newCycle,
       });
-      console.log(`[freshness] Auto-flagged FAQ ${f._id} (tier: ${f.freshnessTier})`);
+      logger.info(`[freshness] Auto-flagged FAQ ${f._id} (tier: ${f.freshnessTier})`);
     }
 
     // ── Auto-escalation: pending_review with no votes after ESCALATION_DAYS ───
@@ -481,12 +482,12 @@ export const runFreshnessCheck = async (): Promise<void> => {
           reason: 'inactivity',
           reviewCycle: f.reviewCycle,
         });
-        console.log(`[freshness] Auto-escalated (inactive) FAQ ${f._id}`);
+        logger.info(`[freshness] Auto-escalated (inactive) FAQ ${f._id}`);
       }
     }
 
-    console.log(`[freshness] Processed ${due.length} stale FAQs, ${inactiveFAQs.length} auto-escalated.`);
+    logger.info(`[freshness] Processed ${due.length} stale FAQs, ${inactiveFAQs.length} auto-escalated.`);
   } catch (err) {
-    console.error('[freshness] Cron error:', (err as Error).message);
+    logger.error(`[freshness] Cron error: ${(err as Error).message}`);
   }
 };

@@ -9,6 +9,7 @@
  */
 
 import { Redis } from '@upstash/redis';
+import { logger } from './logger.js';
 
 // Lazy singleton — only initialized when REDIS_URL is set
 let redis: Redis | null = null;
@@ -54,11 +55,11 @@ export async function getCachedResults(
     const key = `result:${hashQuery(query)}`;
     const cached = await client.get<{ results: unknown[] }>(key);
     if (cached) {
-      console.log(`[cache HIT] "${query.slice(0, 40)}"`);
+      logger.info(`[cache HIT] "${query.slice(0, 40)}"`);
     }
     return cached ?? null;
   } catch (err) {
-    console.warn('[cache] get failed:', (err as Error).message);
+    logger.warn(`[cache] get failed: ${(err as Error).message}`);
     return null;
   }
 }
@@ -76,9 +77,9 @@ export async function setCachedResults(
   try {
     const key = `result:${hashQuery(query)}`;
     await client.set(key, { results }, { ex: RESULT_TTL });
-    console.log(`[cache SET] "${query.slice(0, 40)}"`);
+    logger.info(`[cache SET] "${query.slice(0, 40)}"`);
   } catch (err) {
-    console.warn('[cache] set failed:', (err as Error).message);
+    logger.warn(`[cache] set failed: ${(err as Error).message}`);
   }
 }
 
@@ -107,10 +108,10 @@ export async function invalidateCache(): Promise<void> {
     } while (cursor !== 0);
 
     if (totalDeleted > 0) {
-      console.log(`[cache] invalidated ${totalDeleted} entries`);
+      logger.info(`[cache] invalidated ${totalDeleted} entries`);
     }
   } catch (err) {
-    console.warn('[cache] invalidate failed:', (err as Error).message);
+    logger.warn(`[cache] invalidate failed: ${(err as Error).message}`);
   }
 }
 

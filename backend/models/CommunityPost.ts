@@ -60,15 +60,30 @@ export type LifecycleStatus =
 
 // ─── Document interface ─────────────────────────────────────────────────────────
 export interface ICommunityPost extends Document {
+  _id: Types.ObjectId;
   title: string;
-  body: string;
+  body?: string;
   tags: string[];
   author: Types.ObjectId;
   status: CommunityPostStatus;
+  createdAt?: Date;
   answer: string | null;
   answerIsExpert?: boolean;
   answerAuthorId?: Types.ObjectId | null;
   upvotes: Types.ObjectId[];
+  // AI auto-answer fields
+  aiAnswer?: string | null;
+  aiAnswerConfidence?: number | null;   // 0–1
+  aiAnswerStatus?: 'pending' | 'suggested' | 'approved' | 'rejected' | 'escalated' | null;
+  aiAnswerSource?: string | null;        // FAQ title or 'Knowledge Base' that matched
+  aiAnswerSuggestedAt?: Date | null;
+  aiAnswerReviewedAt?: Date | null;
+  aiAnswerReviewedBy?: Types.ObjectId | null;
+  aiAnswerEscalatedAt?: Date | null;
+  aiAnswerEscalatedReason?: string | null;
+  aiAnswerAttempts?: number;
+  // AI audit tracking (shared with FAQ audit)
+  lastCheckedAt?: Date | null;
   comments: Types.Subdocument[];
   reports: Array<{ reportedBy: Types.ObjectId; reason: string; createdAt?: Date }>;
   embedding?: number[];
@@ -162,6 +177,23 @@ const communityPostSchema = new MongooseSchema(
     answer: { type: String, default: null },
     answerIsExpert: { type: Boolean, default: false },
     answerAuthorId: { type: MongooseSchema.Types.ObjectId, ref: 'User', default: null },
+    // AI auto-answer
+    aiAnswer: { type: String, default: null },
+    aiAnswerConfidence: { type: Number, default: null },
+    aiAnswerStatus: {
+      type: String,
+      enum: ['pending', 'suggested', 'approved', 'rejected', 'escalated'],
+      default: null,
+    },
+    aiAnswerSource: { type: String, default: null },
+    aiAnswerSuggestedAt: { type: Date, default: null },
+    aiAnswerReviewedAt: { type: Date, default: null },
+    aiAnswerReviewedBy: { type: MongooseSchema.Types.ObjectId, ref: 'User', default: null },
+    aiAnswerEscalatedAt: { type: Date, default: null },
+    aiAnswerEscalatedReason: { type: String, default: null },
+    aiAnswerAttempts: { type: Number, default: 0 },
+    // AI audit tracking
+    lastCheckedAt: { type: Date, default: null },
     // Solution DNA — compact answer summary for resolved posts
     dna: {
       steps: { type: [String], default: [] },
@@ -272,6 +304,7 @@ const communityPostSchema = new MongooseSchema(
 communityPostSchema.index({ title: 'text', body: 'text' });
 // Time-Trial activation scheduler
 communityPostSchema.index({ status: 1, timeTrialStatus: 1, createdAt: 1 });
+communityPostSchema.index({ status: 1, aiAnswerStatus: 1, createdAt: 1 });
 // Prevent duplicate upvotes: each user can only appear once in the upvotes array
 communityPostSchema.index({ upvotes: 1 }, { unique: true, sparse: true });
 // Promotion query indexes

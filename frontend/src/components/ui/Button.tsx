@@ -20,15 +20,15 @@ const variantStyles: Record<ButtonVariant, React.CSSProperties> = {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'text-white hover:brightness-90 active:brightness-75 shadow-sm',
+    'text-accent-text hover:brightness-90 active:brightness-75 shadow-sm',
   secondary:
-    'bg-white text-ink border border-border hover:bg-mist hover:border-ink-soft active:bg-border',
+    'bg-card text-ink border border-border hover:bg-mist hover:border-ink-soft active:bg-border',
   ghost:
     'bg-transparent text-ink-soft hover:bg-mist hover:text-ink active:bg-border/40',
   accent:
     'hover:bg-accent/15 active:bg-accent/20',
   danger:
-    'text-white hover:brightness-90 active:brightness-75 shadow-sm',
+    'text-accent-text hover:brightness-90 active:brightness-75 shadow-sm',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

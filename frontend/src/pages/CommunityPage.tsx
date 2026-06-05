@@ -9,7 +9,7 @@ import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import { CommunityDoodles } from '../components/ui/PageDoodles';
 import CommunityHealth from '../components/ui/CommunityHealth';
-import api from '../utils/api';
+import api, { friendlyError } from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
 import { useAuthGate } from '../context/AuthModalContext';
 import type { Post } from '../types/ui';
@@ -95,16 +95,18 @@ export default function CommunityPage() {
     // ?ask=true — open the create dialog. The navbar's "Ask Question" button
     // already gates this behind the auth modal, so by the time we get here
     // (after the gate's pending-action replay) the user is authenticated.
+    // We still double-check user here as a safety net.
     if (params.get('ask') === 'true') {
       if (user) {
         const prefilledTitle = params.get('title') || '';
         setCreatePrefillTitle(prefilledTitle);
         setShowCreate(true);
         window.history.replaceState({}, '', window.location.pathname);
+      } else {
+        // Not authenticated — clear the param so the gate can re-trigger it
+        // after login if the user chooses to sign in.
+        window.history.replaceState({}, '', window.location.pathname);
       }
-      // If not authed here, ignore — the navbar gate's replay only fires
-      // after a successful login, and the user is already back on /community
-      // at that point. No redirect to /login (route no longer exists).
     }
 
     // ?post=<id> — open thread, fetch individually if not in cached list
@@ -169,7 +171,7 @@ export default function CommunityPage() {
       const res = await api.get<{ results: Post[] }>('/community/search', { params: { q } });
       setSearchResults(res.data.results || []);
     } catch (err) {
-      console.error(err);
+      console.error(friendlyError(err, 'Failed to load posts.'));
       setSearchResults([]);
     } finally {
       setSearchLoading(false);
@@ -257,18 +259,17 @@ export default function CommunityPage() {
               </p>
             )}
           </div>
-          <Button
+          <button
             onClick={handleAskQuestion}
             id="ask-question-btn"
-            size="sm"
-            className="sm:!px-5 sm:!py-2.5 sm:!text-sm flex-shrink-0"
+            className="btn-community-ask"
           >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <svg className="flex-shrink-0" width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path d="M7 2V12M2 7H12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
             <span className="hidden sm:inline">Ask a Question</span>
             <span className="sm:hidden">Ask</span>
-          </Button>
+          </button>
         </div>
 
         <CommunityHealth />

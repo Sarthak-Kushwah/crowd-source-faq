@@ -4,7 +4,7 @@ import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import SearchBar from '../components/ui/SearchBar';
 import { FAQDoodles } from '../components/ui/PageDoodles';
-import api from '../utils/api';
+import api, { friendlyError } from '../utils/api';
 import type { TrendingQuery } from '../types/ui';
 
 // Modular components
@@ -54,7 +54,7 @@ function CategoryPills({ categories, activeCategory, onSelect }: CategoryPillsPr
         <button
           type="button"
           onClick={() => handleScroll(-1)}
-          className="shrink-0 w-8 h-8 rounded-full border border-border/80 bg-white/90 shadow-subtle flex items-center justify-center text-ink-faint hover:text-ink hover:border-ink/20 hover:bg-cream transition-all"
+          className="shrink-0 w-8 h-8 rounded-full border border-border/80 bg-card/90 shadow-subtle flex items-center justify-center text-ink-faint hover:text-ink hover:border-ink/20 hover:bg-cream transition-all"
           aria-label="Scroll categories left"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -70,11 +70,11 @@ function CategoryPills({ categories, activeCategory, onSelect }: CategoryPillsPr
             onClick={() => onSelect('')}
             className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-semibold whitespace-nowrap transition-all duration-200 flex-shrink-0
               ${allActive
-                ? 'bg-ink text-white border-ink'
-                : 'bg-white/80 text-ink border-border/70 hover:bg-cream hover:-translate-y-0.5 hover:shadow-subtle'
+                ? 'bg-ink text-accent-text border-ink'
+                : 'bg-card/80 text-ink border-border/70 hover:bg-cream hover:-translate-y-0.5 hover:shadow-subtle'
               }`}
           >
-            <span className={allActive ? 'text-white' : 'text-ink-faint'}>
+            <span className={allActive ? 'text-accent-text' : 'text-ink-faint'}>
               <IconGrid />
             </span>
             All
@@ -89,11 +89,11 @@ function CategoryPills({ categories, activeCategory, onSelect }: CategoryPillsPr
                 onClick={() => onSelect(name)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-semibold whitespace-nowrap transition-all duration-200 flex-shrink-0
                   ${isActive
-                    ? 'bg-accent text-white border-accent/60 shadow-[0_10px_26px_rgba(90,122,90,0.25)]'
-                    : 'bg-white/80 text-ink border-border/70 hover:bg-cream hover:-translate-y-0.5 hover:shadow-subtle'
+                    ? 'bg-accent text-accent-text border-accent/60 shadow-[0_10px_26px_rgba(90,122,90,0.25)]'
+                    : 'bg-card/80 text-ink border-border/70 hover:bg-cream hover:-translate-y-0.5 hover:shadow-subtle'
                   }`}
               >
-                <span className={isActive ? 'text-white' : tone.accent}>
+                <span className={isActive ? 'text-accent-text' : tone.accent}>
                   {getCategoryIcon(name)}
                 </span>
                 {formatCategoryName(name)}
@@ -105,7 +105,7 @@ function CategoryPills({ categories, activeCategory, onSelect }: CategoryPillsPr
         <button
           type="button"
           onClick={() => handleScroll(1)}
-          className="shrink-0 w-8 h-8 rounded-full border border-border/80 bg-white/90 shadow-subtle flex items-center justify-center text-ink-faint hover:text-ink hover:border-ink/20 hover:bg-cream transition-all"
+          className="shrink-0 w-8 h-8 rounded-full border border-border/80 bg-card/90 shadow-subtle flex items-center justify-center text-ink-faint hover:text-ink hover:border-ink/20 hover:bg-cream transition-all"
           aria-label="Scroll categories right"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -166,7 +166,7 @@ export default function FAQPage() {
     api.get('/search/trending')
       .then((res) => setTrendingWords((res.data.trending || []).map((t: { query: string; count: number }) => ({ query: t.query, count: t.count }))))
       .catch((err: unknown) => {
-        console.error('Failed to load trending queries:', err);
+        console.error(friendlyError(err, 'Failed to load trending queries.'));
       });
   }, []);
 
@@ -363,7 +363,7 @@ export default function FAQPage() {
         {/* Backdrop blur overlay when search is active */}
         {showDropdown && (
           <div
-            className="fixed inset-0 z-30 bg-ink/20 backdrop-blur-sm transition-opacity duration-300"
+            className="search-overlay"
             onClick={handleClearSearch}
             aria-hidden="true"
           />
@@ -429,7 +429,7 @@ export default function FAQPage() {
                       <button
                         key={word.query + i}
                         onClick={() => handleWordClick(word.query)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/80 border border-border/70 text-xs font-medium text-ink hover:bg-accent hover:text-white hover:border-accent transition-all duration-200 hover:-translate-y-0.5 hover:shadow-subtle"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/70 text-xs font-medium text-ink hover:bg-accent hover:text-accent-text hover:border-accent transition-all duration-200 hover:-translate-y-0.5 hover:shadow-subtle group search-pill"
                       >
                         <span className="text-ink-faint font-semibold text-[10px]">#{i + 1}</span>
                         {word.query}
@@ -446,7 +446,7 @@ export default function FAQPage() {
         {loading && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="h-[220px] rounded-2xl border border-border bg-white/70 animate-pulse" />
+              <div key={i} className="h-[220px] rounded-2xl border border-border bg-card/70 animate-pulse" />
             ))}
           </div>
         )}
@@ -456,7 +456,7 @@ export default function FAQPage() {
             <p className="text-sm text-danger font-medium">{error}</p>
             <button
               onClick={() => { setError(''); setLoading(true); api.get('/faq').then(res => { setGrouped(res.data.grouped || {}); setTotal(res.data.total || 0); }).catch((err: unknown) => { const m = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to load FAQs.'; setError(m); }).finally(() => setLoading(false)); }}
-              className="px-5 py-2 text-sm font-medium bg-danger text-white rounded-full hover:bg-danger/90 transition-colors"
+              className="px-5 py-2 text-sm font-medium bg-danger text-accent-text rounded-full hover:bg-danger/90 transition-colors"
             >
               Retry
             </button>

@@ -4,12 +4,12 @@ import { useAuth } from '../../hooks/useAuth';
 import { useAuthModal, useAuthGate } from '../../context/AuthModalContext';
 import { buildTransformedUrl } from '../../hooks/useCloudinaryUpload';
 import NotificationBell from '../../components/ui/NotificationBell';
+import ThemeToggle from '../../components/ui/ThemeToggle';
 
 const navItems = [
   { label: 'Home', to: '/' },
   { label: 'FAQ', to: '/faq' },
   { label: 'Community', to: '/community' },
-  { label: 'Saved', to: '/saved' },
   { label: 'Leaderboard', to: '/leaderboard' },
 ];
 
@@ -62,10 +62,6 @@ export default function Navbar() {
     // Stay on current page — the user is just logged out, not navigated.
   };
 
-  const handleAskQuestion = gate(() => {
-    navigate('/community?ask=true');
-  }, 'Sign in to ask a question in the community.');
-
   const initials = user?.name ? user.name.charAt(0).toUpperCase() : '?';
   const avatarColor = getAvatarColor(user?.name);
   // Thumbnail transform — cap the navbar avatar at 64×64 so we're not
@@ -88,8 +84,8 @@ export default function Navbar() {
 
         {/* Logo */}
         <NavLink to="/" className="flex items-center gap-2.5 group flex-shrink-0">
-          <div className="w-9 h-9 rounded-[10px] border-2 border-ink flex items-center justify-center transition-transform duration-300 group-hover:rotate-[-6deg]">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1f1f1f" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <div className="w-9 h-9 rounded-[10px] border-2 border-ink text-ink flex items-center justify-center transition-transform duration-300 group-hover:rotate-[-6deg]">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/>
               <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
               <line x1="12" y1="17" x2="12.01" y2="17"/>
@@ -101,7 +97,7 @@ export default function Navbar() {
         </NavLink>
 
         {/* Center Pill Group (Desktop) */}
-        <div className="hidden lg:flex items-center gap-1.5 px-1.5 py-[5px] rounded-full border-[1.5px] border-border bg-white/50 backdrop-blur-[12px] absolute left-1/2 -translate-x-1/2">
+        <div className="hidden lg:flex items-center gap-1.5 px-1.5 py-[5px] rounded-full border-[1.5px] border-border bg-card/50 backdrop-blur-[12px] absolute left-1/2 -translate-x-1/2">
           {navItems.map(({ label, to }) => (
             <NavLink
               key={to}
@@ -119,29 +115,8 @@ export default function Navbar() {
         {/* Right Side */}
         <div className="flex items-center gap-2 flex-shrink-0">
 
-          {/* Ask AI — placeholder for the upcoming floating chat widget. */}
-          <button
-            disabled
-            title="AI chat — coming soon"
-            className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-ink-faint border border-dashed border-border rounded-full cursor-not-allowed opacity-70"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M12 2l1.5 4.5L18 8l-4.5 1.5L12 14l-1.5-4.5L6 8l4.5-1.5L12 2z"/>
-              <path d="M19 14l.8 2.4L22 17l-2.2.6L19 20l-.8-2.4L16 17l2.2-.6L19 14z"/>
-            </svg>
-            Ask AI
-            <span className="text-[9px] font-semibold text-ink-faint bg-mist px-1.5 py-0.5 rounded-full">SOON</span>
-          </button>
-
-          {/* Ask Question — always visible. Logged-out users get the auth modal via `gate`. */}
-          {!isCommunityActive && (
-            <button
-              onClick={handleAskQuestion}
-              className="hidden lg:flex items-center px-5 py-[7px] text-[0.82rem] font-semibold text-ink bg-transparent border-[1.5px] border-ink rounded-full cursor-pointer transition-all duration-300 ease-smooth tracking-[0.01em] leading-none hover:bg-ink hover:text-white hover:shadow-[0_4px_16px_rgba(0,0,0,0.15)] hover:-translate-y-px active:translate-y-0"
-            >
-              Ask Question
-            </button>
-          )}
+        {/* Theme toggle — always visible, to the left of the auth/notif block */}
+        <ThemeToggle />
 
         {/* Unauthenticated — Sign in (text) + Get started (filled) */}
         {!isAuthenticated && (
@@ -154,7 +129,7 @@ export default function Navbar() {
             </button>
             <button
               onClick={() => openModal('register')}
-              className="px-4 py-1.5 text-sm font-semibold bg-accent text-white rounded-full hover:bg-accent-hover transition-colors"
+              className="btn-primary-gradient px-4 py-1.5 text-sm font-semibold rounded-full transition-colors"
             >
               Get started
             </button>
@@ -178,12 +153,12 @@ export default function Navbar() {
                   <img
                     src={avatarSrc}
                     alt={user?.name ? `${user.name} avatar` : 'avatar'}
-                    className="w-9 h-9 rounded-full object-cover shadow-[0_0_0_2px_#fff,0_1px_4px_rgba(0,0,0,0.08)] transition-transform duration-200 group-hover:scale-105"
+                    className="w-9 h-9 rounded-full object-cover ring-2 ring-card transition-transform duration-200 group-hover:scale-105"
                     loading="lazy"
-                  />
-                ) : (
-                  <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-[0_0_0_2px_#fff,0_1px_4px_rgba(0,0,0,0.08)] transition-transform duration-200 group-hover:scale-105"
+                    />
+                    ) : (
+                    <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-accent-text text-sm font-semibold ring-2 ring-card transition-transform duration-200 group-hover:scale-105"
                     style={{ backgroundColor: avatarColor }}
                   >
                     {initials}
@@ -191,15 +166,15 @@ export default function Navbar() {
                 )}
                 <svg
                   width="12" height="12" viewBox="0 0 24 24" fill="none"
-                  stroke="#6b6b6b" strokeWidth="2.5"
-                  className={`hidden md:block transition-transform duration-200 ${profileOpen ? 'rotate-180' : ''}`}
+                  stroke="currentColor" strokeWidth="2.5"
+                  className={`hidden md:block text-ink-soft transition-transform duration-200 ${profileOpen ? 'rotate-180' : ''}`}
                 >
                   <polyline points="6 9 12 15 18 9"/>
                 </svg>
               </button>
 
               {profileOpen && (
-                <div className="absolute right-0 top-12 w-48 bg-white rounded-xl border border-border shadow-float py-2 animate-fade-in z-50">
+                <div className="absolute right-0 top-12 w-48 bg-card rounded-xl border border-border shadow-float py-2 animate-fade-in z-50">
                   <div className="px-4 py-2 border-b border-border/50">
                     <p className="text-sm font-medium text-ink">{user?.name || 'User'}</p>
                     <p className="text-xs text-ink-faint">{user?.email || ''}</p>
@@ -217,6 +192,12 @@ export default function Navbar() {
                     className="w-full text-left px-4 py-2.5 text-sm text-ink-soft hover:bg-bg hover:text-ink transition-colors border-b border-border/30"
                   >
                     Account
+                  </button>
+                  <button
+                    onClick={() => { navigate('/saved'); setProfileOpen(false); }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-ink-soft hover:bg-bg hover:text-ink transition-colors border-b border-border/30"
+                  >
+                    Saved
                   </button>
                   <button
                     onClick={handleLogout}
@@ -256,14 +237,13 @@ export default function Navbar() {
 
       {/* Mobile Dropdown */}
       <div
-        className={`lg:hidden overflow-hidden transition-all duration-[350ms] ease-smooth ${
+        className={`lg:hidden overflow-hidden transition-all duration-[350ms] ease-smooth border-t border-border ${
           mobileOpen ? 'max-h-[28rem] opacity-100' : 'max-h-0 opacity-0'
         }`}
         style={{
-          backgroundColor: 'rgba(255,255,255,0.95)',
+          backgroundColor: 'rgb(var(--bg-card-rgb) / 0.95)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          borderTop: mobileOpen ? '1px solid #e5e5e5' : 'none',
         }}
       >
         <div className="px-6 py-4 flex flex-col gap-1">
@@ -285,28 +265,7 @@ export default function Navbar() {
             </NavLink>
           ))}
 
-          {/* Mobile: Ask AI placeholder */}
-          <button
-            disabled
-            title="AI chat — coming soon"
-            className="mt-2 w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium text-ink-faint border border-dashed border-border cursor-not-allowed flex items-center gap-2"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M12 2l1.5 4.5L18 8l-4.5 1.5L12 14l-1.5-4.5L6 8l4.5-1.5L12 2z"/>
-              <path d="M19 14l.8 2.4L22 17l-2.2.6L19 20l-.8-2.4L16 17l2.2-.6L19 14z"/>
-            </svg>
-            Ask AI
-            <span className="text-[9px] font-semibold text-ink-faint bg-mist px-1.5 py-0.5 rounded-full">SOON</span>
-          </button>
-
-          {!isCommunityActive && (
-            <button
-              onClick={() => { handleAskQuestion(); setMobileOpen(false); }}
-              className="w-full py-2.5 px-4 text-sm font-semibold text-ink bg-transparent border-[1.5px] border-ink rounded-full cursor-pointer transition-all hover:bg-ink hover:text-white"
-            >
-              Ask Question
-            </button>
-          )}
+          {/* Mobile: Sign-in / Get started */}
           {!isAuthenticated && (
             <div className="flex gap-2 mt-2">
               <button
@@ -317,16 +276,30 @@ export default function Navbar() {
               </button>
               <button
                 onClick={() => { openModal('register'); setMobileOpen(false); }}
-                className="flex-1 py-2.5 px-4 text-sm font-semibold text-white bg-accent rounded-full hover:bg-accent-hover transition-colors"
+                className="btn-primary-gradient flex-1 py-2.5 px-4 text-sm font-semibold rounded-full transition-colors"
               >
                 Get started
               </button>
             </div>
           )}
           {isAuthenticated && (
-            <div className="mt-2 px-4 py-2 text-xs text-ink-soft border-t border-border/40">
-              Signed in as <span className="font-medium text-ink">{user?.name}</span>
-            </div>
+            <>
+              <NavLink
+                to="/saved"
+                end
+                onClick={() => setMobileOpen(false)}
+                className={({ isActive }) =>
+                  `block px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                    isActive ? 'bg-accent-light text-accent' : 'text-ink-soft hover:text-ink hover:bg-black/[0.03]'
+                  }`
+                }
+              >
+                Saved
+              </NavLink>
+              <div className="mt-2 px-4 py-2 text-xs text-ink-faint border-t border-border/40">
+                Signed in as <span className="font-medium text-ink">{user?.name}</span>
+              </div>
+            </>
           )}
         </div>
       </div>

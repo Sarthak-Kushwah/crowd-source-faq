@@ -95,7 +95,7 @@ const runTextSearch = async (collectionName: string, queryStr: string, limit = 5
     .toArray() as SearchResultItem[];
   } catch (error) {
     // Fail gracefully if the text index hasn't been built yet
-    console.warn(`Text search on '${collectionName}' failed: ${(error as Error).message}`);
+    logger.warn(`Text search on '${collectionName}' failed: ${(error as Error).message}`);
     return [];
   }
 };
@@ -161,7 +161,7 @@ const runVectorSearch = async (collectionName: string, queryEmbedding: number[],
 
     return await collection.aggregate(pipeline).toArray() as SearchResultItem[];
   } catch (error) {
-    console.warn(`Vector search on '${collectionName}' failed: ${(error as Error).message}`);
+    logger.warn(`Vector search on '${collectionName}' failed: ${(error as Error).message}`);
     return [];
   }
 };

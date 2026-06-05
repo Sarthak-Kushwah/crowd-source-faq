@@ -11,7 +11,7 @@ export default function Footer() {
         {/* Brand */}
         <Link to="/" className="inline-flex items-center gap-2.5 mb-5 no-underline group">
           <div className="w-8 h-8 rounded-[8px] border-2 border-ink flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1f1f1f" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-ink" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/>
               <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
               <line x1="12" y1="17" x2="12.01" y2="17"/>

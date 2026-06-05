@@ -40,10 +40,7 @@ export default function AdminLeaderboard() {
 
   return (
     <div className="space-y-4 max-w-4xl">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900">Leaderboard</h2>
-        <p className="text-sm text-gray-500 mt-0.5">{total} ranked users · top 50 overall</p>
-      </div>
+      <p className="text-sm text-gray-500 -mt-2">{total} ranked users · top 50 overall</p>
 
       {/* Top 3 podium */}
       {!loading && entries.length >= 3 && (

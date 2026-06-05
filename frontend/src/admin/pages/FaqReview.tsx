@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import adminApi from '../utils/adminApi';
+import { friendlyError } from '../../utils/api';
 
 interface AiGeneratedFaq {
   question: string;
@@ -88,7 +89,7 @@ export default function FaqReview() {
     try {
       await adminApi.post('/admin/community-promotions/ai-review-batch');
       await loadQueue(page);
-    } catch (e) { console.warn(e); }
+    } catch (e) { console.warn(friendlyError(e, 'Batch review failed.')); }
     finally { setAiBatchLoading(false); }
   }
 
@@ -105,7 +106,7 @@ export default function FaqReview() {
         await adminApi.post(`/admin/community-promotions/${item._id}/ai-review`);
       }
       await loadQueue(page);
-    } catch (e) { console.warn(e); }
+    } catch (e) { console.warn(friendlyError(e, 'Approve failed.')); }
     finally { setActioning(null); }
   }
 
@@ -120,7 +121,7 @@ export default function FaqReview() {
       setObjectModal(null);
       setObjectReason('');
       await loadQueue(page);
-    } catch (e) { console.warn(e); }
+    } catch (e) { console.warn(friendlyError(e, 'Reject failed.')); }
     finally { setActioning(null); }
   }
 
@@ -133,7 +134,7 @@ export default function FaqReview() {
         tags: item.aiGeneratedFaq?.tags ?? item.tags,
       });
       await loadQueue(page);
-    } catch (e) { console.warn(e); }
+    } catch (e) { console.warn(friendlyError(e, 'Merge failed.')); }
     finally { setActioning(null); setMergeTarget(''); }
   }
 
@@ -150,7 +151,7 @@ export default function FaqReview() {
       setViewItem(null);
       setEditData(null);
       await loadQueue(page);
-    } catch (e) { console.warn(e); }
+    } catch (e) { console.warn(friendlyError(e, 'Edit save failed.')); }
     finally { setActioning(null); }
   }
 

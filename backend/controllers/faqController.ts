@@ -335,7 +335,7 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
     await invalidateCache();
 
     // Fan out tea drops to all non-admin users
-    createTeaDropsForFAQ(faq._id.toString(), question).catch(console.warn);
+    createTeaDropsForFAQ(faq._id.toString(), question).catch((err) => logger.warn(`[faq] createTeaDropsForFAQ failed: ${(err as Error).message}`));
 
     res.status(201).json({ message: 'FAQ created successfully.', faq });
   } catch (error) {

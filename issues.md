@@ -101,3 +101,127 @@ A short declarative line that *isn't* a speaker (e.g. "Yes", "I think") gets mis
 | I2 | `verifyZoomSignature()` checks `x-zm-signature` HMAC-SHA256 against `ZOOM_WEBHOOK_SECRET_TOKEN`; skips if env not set (dev mode) | ✅ Done |
 
 Backlog (not touched): B4, D1, D2, I1, I3, F2, F3.
+
+---
+
+## Re-Audit (2026-06-04 pass)
+
+> Scanned the codebase after the auto-Zoom + RAG + UI work landed. Looked for security gaps, silent-failure paths, and N+1 / race issues in the new code paths.
+
+### 🔴 N1 — OAuth `state` parameter is just base64(userId), not signed
+
+**Where:** `backend/utils/zoomOAuth.ts:92`
+
+```typescript
+state: Buffer.from(internalUserId).toString('base64'),
+```
+
+**Risk:** The OAuth `state` is supposed to be unguessable + verifiable so the callback can confirm the response came from the flow we started. Right now it's just the user's internal ID in base64 — **anyone can forge a state for any user**, e.g. `state=base64('64f0...abc')`. Combined with the attacker's own completed Zoom OAuth, this writes the attacker's Zoom tokens onto the victim's user document. The victim is now linked to the attacker's Zoom account; recordings from the attacker's meetings will land in the victim's namespace.
+
+**Fix:** Generate a 32-byte random nonce on `/auth/connect`, store it in a Redis/DB-backed state table keyed by nonce → { userId, expiresAt } (5min TTL). On callback, look up the nonce, verify expiry, then use the stored userId. Alternatively, HMAC-sign `userId` with a server secret: `state = base64(userId + ':' + hmacSha256(userId, SERVER_SECRET))` and verify on callback.
+
+### N2 — `verifyZoomSignature()` falls closed in production
+
+**Where:** `backend/controllers/zoomController.ts:39-42`
+
+```typescript
+const secret = process.env['ZOOM_WEBHOOK_SECRET_TOKEN'];
+if (!secret) {
+  logger.warn('[Zoom] ZOOM_WEBHOOK_SECRET_TOKEN not set — skipping signature verification (dev only)');
+  return true;
+}
+```
+
+**Risk:** If someone deploys this to staging or prod without setting the env var, **every webhook is accepted from any sender**. The "dev only" comment is documentation, not enforcement. An attacker who knows the endpoint exists can POST garbage events and we'll process them — creating fake `ZoomMeeting` records, draining the AI extraction quota, polluting the KB.
+
+**Fix:** Fail-closed in non-dev:
+```typescript
+if (!secret) {
+  if (process.env.NODE_ENV === 'production') {
+    logger.error('[Zoom] ZOOM_WEBHOOK_SECRET_TOKEN missing in production — rejecting webhook');
+    return false;
+  }
+  logger.warn('[Zoom] ZOOM_WEBHOOK_SECRET_TOKEN not set — skipping signature verification (dev only)');
+  return true;
+}
+```
+
+### 🟡 N3 — RRF scores in `runRag()` max out at ~0.02, but my relevance threshold used to be 0.02 (single value)
+
+**Where:** `backend/controllers/knowledgeController.ts` (the `THRESHOLDS` map).
+
+**Status:** ✅ Fixed in this pass — the controller now uses a per-source-type threshold map:
+```typescript
+const THRESHOLDS = { faq: 0.025, community: 0.025, knowledge: 0.35 };
+```
+
+RAG and ASK-AI controller use this. But the original flat `MIN_RELEVANCE = 0.02` was leaking into the response and is now gone. Confirm by searching for `MIN_RELEVANCE` — should return no hits.
+
+### 🟡 N4 — `getUserZoomToken` does not auto-refresh when expired
+
+**Where:** `backend/utils/zoomOAuth.ts:160-220` (read flow).
+
+The token refresh logic exists in `getUserZoomToken` but is only used by a few code paths. Several other call sites read `zoomAccessToken` directly and would make 401 calls against Zoom if the token has expired (>1 hour since last refresh). The circuit breaker will trip after enough 401s, but the first few will just fail silently.
+
+**Fix:** Centralize: every call site that needs the Zoom API should call `getUserZoomToken(userId)` (which auto-refreshes), not read the encrypted field directly. Or add a single helper `zoomApiFetch(userId, path, init)` that handles refresh + 401 retry internally.
+
+### 🟡 N5 — `processZoomMeetingForKnowledge` errors are silently caught
+
+**Where:** `backend/controllers/zoomController.ts` — non-blocking fire-and-forget chain.
+
+```typescript
+processZoomMeetingForKnowledge(meeting._id.toString()).catch((err) =>
+  logger.warn(`[Zoom] Knowledge extraction failed for meeting ${meeting._id}: ${err.message}`)
+);
+```
+
+If the AI call for the KB extraction fails, we log a warn and move on. The meeting gets a `completed` status but the user has no idea the KB-extraction half failed. There's no dead-letter queue, no retry, no user-visible indicator.
+
+**Fix (carry-over from I1):** Add a `yaksha_zoom_processing_failures` collection + a `retryFailedExtractions()` cron. Low priority but accumulating tech debt.
+
+### 🟡 N6 — Backfill spawns unbounded parallel AI calls
+
+**Where:** `backend/controllers/zoomController.ts:210-260` (the backfill loop).
+
+After deduplication, the loop calls `processTranscriptForUser` sequentially. Looking at the call chain, that function is `await`ed for each meeting. So this is actually fine — sequential, not parallel. But it can take 30+ minutes for a 90-day backfill with 50 recordings, and there's no progress visibility.
+
+**Status:** Not a bug; just a UX improvement. Consider streaming progress to a status endpoint.
+
+### 🟢 N7 — 35 `catch {}` blocks swallow errors silently
+
+**Where:** Distributed across `controllers/`, `services/`, `utils/`. Examples:
+- `backend/services/aiClient.ts:265` (and 4 more)
+- `backend/scripts/backfillEmbeddings.ts:37, 51`
+- `backend/controllers/postController.ts:90`
+
+Most are inside `for` loops where continuing past an error is correct, but the error is never logged — so a 100% failure rate looks like a 0% failure rate.
+
+**Fix:** Add at least `logger.warn({ error }, 'item failed')` so failures surface in the logs.
+
+### 🟢 N8 — 187 `console.log/warn/error` calls scattered (down from 200+ in earlier passes)
+
+**Where:** Mostly in `scripts/` (acceptable for one-off migration tools) and a few in `controllers/`. The logger is the right tool for runtime logging.
+
+**Status:** Largely acceptable as-is. Clean up if you have time; not blocking.
+
+### 🟢 N9 — Old `transcript_snippet` data still has full transcripts
+
+**Where:** `yaksha_zoom_insights` collection. The 17 pending-review insights were created before the keyword-extraction fix, so they still show the full transcript as snippet.
+
+**Fix:** One-shot migration script that re-runs `keywordSnippet()` for each insight's question + answer against the stored raw transcript (if still available), or just deletes the bad snippet and re-fetches from the linked meeting.
+
+---
+
+## Summary
+
+| # | Item | Status |
+|---|------|--------|
+| N1 | OAuth state forgery (HMAC-signed) | ✅ Fixed 2026-06-04 |
+| N2 | Webhook signature fails closed in production | ✅ Fixed 2026-06-04 |
+| N3 | Per-source-type RAG threshold | ✅ Fixed |
+| N4 | Zoom token auto-refresh | 🟡 Centralize the helper |
+| N5 | Silent KB extraction failures | 🟡 Add dead-letter queue (carry-over from I1) |
+| N6 | Backfill progress visibility | 🟢 UX nice-to-have |
+| N7 | Silent `catch {}` blocks | 🟢 Add at least a warn log |
+| N8 | `console.*` left in code | 🟢 Not blocking |
+| N9 | Old transcript_snippet data | 🟢 One-shot migration script |

@@ -266,7 +266,7 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
     try {
       embedding = await generateEmbedding(`Question: ${title}. Description: ${body}`);
     } catch (err) {
-      console.warn('Failed to generate embedding for post:', (err as Error).message);
+      logger.warn(`Failed to generate embedding for post: ${(err as Error).message}`);
     }
 
     // Validate attachments: cap at 4, drop malformed entries, ensure URLs
@@ -608,7 +608,7 @@ export const convertCommunityPostToFAQ = async (req: Request, res: Response): Pr
     try {
       embedding = await generateEmbedding(`Question: ${post.title}. Answer: ${post.answer}`);
     } catch (err) {
-      console.warn('Failed to generate embedding for FAQ:', (err as Error).message);
+      logger.warn(`Failed to generate embedding for FAQ: ${(err as Error).message}`);
     }
 
     // Create the FAQ from the post's title (question) and answer
