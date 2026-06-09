@@ -11,9 +11,11 @@ Refer More Here -> [`docs/`](docs/README.md)
 
 ### Frontend
 - React 18, React Router 6
-- Vite, TypeScript, Tailwind CSS
+- Vite, TypeScript, Tailwind CSS (with PostCSS + Autoprefixer)
 - Framer Motion (animations)
-- React Testing Library, Vitest
+- Axios (HTTP client)
+- Recharts (admin dashboard charts)
+- React Testing Library, jsdom, Vitest
 
 ### Backend
 - Node.js, Express 4
@@ -23,6 +25,8 @@ Refer More Here -> [`docs/`](docs/README.md)
 - Helmet (security headers), CORS, Morgan (request logging), Multer (file uploads)
 - Zod (runtime validation)
 - express-rate-limit (rate limiting)
+- dotenv (env loading)
+- OpenAI SDK (direct client for non-pipeline calls)
 - Vitest (testing)
 
 ### Database & Storage
