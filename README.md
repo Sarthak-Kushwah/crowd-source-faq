@@ -86,6 +86,25 @@ Full reference in [`docs/`](docs/README.md):
 
 ---
 
+## Vision
+
+**Automate the FAQ lifecycle end-to-end. Zero people in the loop. Reduce the operational FAQ culture.**
+
+This platform is built on a single conviction: knowledge work should not depend on someone being awake, online, or willing to answer. Every question a user has has been asked before — and most will be asked again. The right answer, in the right form, should be there before the user finishes typing.
+
+We pursue this through ruthless automation:
+
+- **Zero-touch ingestion** — Zoom meetings, webhooks, and manual uploads flow into a knowledge base without a human scheduling, categorizing, or approving them. The platform extracts questions, generates embeddings, and makes them searchable in seconds.
+- **Zero-touch answering** — Unanswered community posts are matched against the knowledge base on a 24-hour cycle. High-confidence matches auto-post. Low-confidence matches escalate to humans only when there is no better option.
+- **Zero-touch quality control** — Approved FAQs are re-evaluated every 6 hours against new knowledge. Drift, contradictions, and staleness are detected and flagged automatically. The peer-vote freshness system catches what AI misses.
+- **Zero-touch user lifecycle** — Deletion is anonymization, not destruction. Reputation, attribution, and audit history persist automatically.
+
+The result: an organization can scale to 1 million users with a fraction of the moderator and content-team headcount that a traditional forum would require. The platform is the operator. People handle exceptions, not the steady state.
+
+This is not about replacing humans. It is about freeing them from the endless cycle of "someone asked this in 2022 and we wrote a Slack answer" — the cultural tax of operating a FAQ by hand.
+
+---
+
 ## Key Features
 
 Four flagship capabilities define this platform:
