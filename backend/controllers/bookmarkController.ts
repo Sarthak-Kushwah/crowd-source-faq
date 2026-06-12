@@ -39,17 +39,33 @@ export async function toggleBookmark(req: Request, res: Response): Promise<void>
     const user = await User.findById(userId);
     if (!user) { res.status(404).json({ error: 'User not found' }); return; }
 
-    const bookmarks = user.bookmarks as unknown as mongoose.Types.ObjectId[];
-    const idx = bookmarks.findIndex(b => b.toString() === postId);
-    const bookmarked = idx === -1;
-
+    const postObjectId = new mongoose.Types.ObjectId(postId);
+    // v1.68 — H3 fix: was read-modify-write on
+    //   user.bookmarks.push / splice + user.save()
+    // Two concurrent bookmark toggles on the same post could
+    // both read the same state, both push/splice, and both
+    // save() — losing the other's toggle. Same fix shape as
+    // the badge award (C2): atomic findOneAndUpdate with the
+    // right filter to make each op idempotent.
+    //
+    //   - if not bookmarked: $addToSet (idempotent — adds
+    //     only if not present)
+    //   - if already bookmarked: $pull (idempotent — no-op
+    //     if not present)
+    const alreadyBookmarked = (user.bookmarks as unknown as mongoose.Types.ObjectId[])
+      .some(b => b.toString() === postId);
+    const bookmarked = !alreadyBookmarked;
     if (bookmarked) {
-      bookmarks.push(new mongoose.Types.ObjectId(postId));
+      await User.findOneAndUpdate(
+        { _id: userId, 'bookmarks': { $ne: postObjectId } },
+        { $addToSet: { bookmarks: postObjectId } },
+      );
     } else {
-      bookmarks.splice(idx, 1);
+      await User.findOneAndUpdate(
+        { _id: userId, 'bookmarks': postObjectId },
+        { $pull: { bookmarks: postObjectId } },
+      );
     }
-    user.bookmarks = bookmarks as unknown as typeof user.bookmarks;
-    await user.save();
 
     res.json({ bookmarked, postId });
   } catch (err) {
