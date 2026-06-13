@@ -24,6 +24,7 @@
     "cleanup:orphan-notifications": "tsx scripts/cleanupOrphanNotifications.ts",
     "seed:live": "tsx scripts/seedLiveData.ts",
     "cleanup:seed": "tsx scripts/cleanupSeedData.ts",
+    "setup:new-cluster": "tsx scripts/setupNewCluster.ts",
     "recompute:tier": "tsx scripts/recomputeTier.ts"
   },
   "dependencies": {
