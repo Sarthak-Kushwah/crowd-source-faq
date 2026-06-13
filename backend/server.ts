@@ -35,6 +35,7 @@ import adminTimelineRoutes from './routes/adminTimelineRoutes.js';
 import { adminRouter as appSettingsAdminRouter, publicRouter as appSettingsPublicRouter } from './routes/appSettings.js';
 import { ingestFrontendLog } from './utils/http/fileLogger.js';
 import { logger, startupLog, shutdownLog, cronLog, queueLog } from './utils/http/logger.js';
+import { startBot, stopBot } from './bot/discordBot.js';
 import { requestLogger } from './utils/http/requestLogger.js';
 import { startEscalationScheduler, stopEscalationScheduler } from './controllers/escalationController.js';
 import { runScheduledAutoAnswer, stopAutoAnswerScheduler } from './controllers/autoAnswerController.js';
@@ -383,6 +384,14 @@ if (process.env.NODE_ENV !== 'production') {
     runScheduledAutoAnswer().catch((err) => logger.error(`[autoAnswer] Startup: ${(err as Error).message}`));
     runScheduledFAQAudit().catch((err) => logger.error(`[faqAudit] Startup: ${(err as Error).message}`));
 
+    // v1.68 — start the Discord bot (gated on
+    // DISCORD_BOT_TOKEN; no-ops gracefully if the env var
+    // is missing). The bot registers its own guild-scoped
+    // slash commands on ready, listens for /ask, /search,
+    // /status, /help, and admin-only /tickets, /resolve,
+    // /ban, /broadcast.
+    void startBot().catch((err) => logger.error(`[bot] startup: ${(err as Error).message}`));
+
     // Start promotion scheduler — every 15 minutes, idempotent
     const promotionInterval = setInterval(runPromotionCycle, 15 * 60 * 1000);
     runPromotionCycle().catch((e: Error) => logger.error(`Initial promotion cycle: ${e.message}`));
@@ -458,6 +467,9 @@ if (process.env.NODE_ENV !== 'production') {
       stopFAQAuditScheduler();
       void stopDocumentWorker();
       void shutdownTesseract();
+      // v1.68 — disconnect the Discord bot (safe if not
+      // connected)
+      void stopBot();
     };
     process.on('SIGTERM', cleanup);
     process.on('SIGINT', cleanup);
@@ -482,6 +494,9 @@ async function gracefulShutdown(signal: string): Promise<void> {
 
   // Stop the escalation scheduler
   stopEscalationScheduler();
+
+  // v1.68 — stop the Discord bot
+  await stopBot();
 
   // Close MongoDB connection
   await mongoose.connection.close();

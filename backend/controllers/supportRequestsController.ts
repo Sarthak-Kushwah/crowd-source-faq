@@ -21,6 +21,7 @@ import SupportRequest, {
 } from '../models/SupportRequest.js';
 import SupportCategory, { type IContextField } from '../models/SupportCategory.js';
 import { supportLog } from '../utils/http/logger.js';
+import { postNotification } from '../bot/notifications.js';
 import { assertCanCreateContent } from '../utils/banUtils.js';
 import {
   VALID_STATUSES,
@@ -326,6 +327,23 @@ export async function createSupportRequest(req: Request, res: Response): Promise
         status: 'Pending',
       },
     });
+
+    // v1.68 — also post a notification to the configured
+    // Discord channel (if the bot is enabled).
+    void postNotification({
+      kind: 'new_support_ticket',
+      title: `🎟️  New ${isGoldenRequested ? '🏆 Golden ' : ''}support ticket`,
+      description: [
+        `**${requester.name}** (${userId}) opened a **${config.label}** ticket.`,
+        (details ?? '').slice(0, 400),
+      ].join('\n\n'),
+      fields: [
+        { name: 'Type', value: config.label, inline: true },
+        { name: 'User', value: `<@${requester.email ?? requester.name}>\n${userId}`, inline: true },
+        { name: 'Ticket ID', value: `\`${request._id.toString()}\``, inline: true },
+      ],
+      mentionAdmins: isGoldenRequested,
+    }).catch(() => { /* never block the response */ });
 
     // v1.65.3 — Stamp the user-level cooldown on successful Golden
     // submission. The field stores the END date directly (now +
