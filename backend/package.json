@@ -23,8 +23,10 @@
     "audit:data": "tsx scripts/auditData.ts",
     "cleanup:orphan-notifications": "tsx scripts/cleanupOrphanNotifications.ts",
     "seed:live": "tsx scripts/seedLiveData.ts",
+    "fetch:faqs": "tsx scripts/fetchFaqsFromSite.ts",
     "cleanup:seed": "tsx scripts/cleanupSeedData.ts",
     "setup:new-cluster": "tsx scripts/setupNewCluster.ts",
+    "test:hf-key": "tsx scripts/testHuggingFaceKey.ts",
     "recompute:tier": "tsx scripts/recomputeTier.ts"
   },
   "dependencies": {
