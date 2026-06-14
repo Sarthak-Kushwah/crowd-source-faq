@@ -48,10 +48,41 @@ function kebabify(label: string): string {
 // ─── Category CRUD ────────────────────────────────────────────────────────
 
 /** GET /api/support/categories — list all categories (active first). */
-export async function listCategories(_req: Request, res: Response): Promise<void> {
+export async function listCategories(req: Request, res: Response): Promise<void> {
   try {
+    // v1.69 — Phase 9: when ?batchId=... is supplied, return
+    // only the per-program categories (issue types the
+    // program has overridden) + the global defaults merged.
+    // Without a batchId, the legacy global view is returned.
+    const rawBatch = req.query.batchId;
+    const batchId = typeof rawBatch === 'string' && Types.ObjectId.isValid(rawBatch)
+      ? new Types.ObjectId(rawBatch)
+      : null;
+    const filter: Record<string, unknown> = {};
+    if (batchId) {
+      // Per-program categories (with this batchId) + global
+      // defaults (with batchId:null). Admin-created overrides
+      // win on (issueType) collision.
+      const [perProgram, global] = await Promise.all([
+        SupportCategory.find({ batchId }).sort({ displayOrder: 1, createdAt: 1 }).lean(),
+        SupportCategory.find({ batchId: null }).sort({ displayOrder: 1, createdAt: 1 }).lean(),
+      ]);
+      // The picker UI shows a per-program override as its own
+      // card with a "Custom" badge. The admin UI uses
+      // ?includeOverrides=true to see both the global and the
+      // per-program view side by side.
+      if (req.query.includeOverrides === 'true') {
+        res.json({ categories: [...global, ...perProgram], source: 'merged' });
+        return;
+      }
+      const byIssueType = new Map<string, typeof perProgram[number]>();
+      for (const c of global) byIssueType.set(c.issueType, c);
+      for (const c of perProgram) byIssueType.set(c.issueType, c); // per-program wins
+      res.json({ categories: Array.from(byIssueType.values()), source: 'merged' });
+      return;
+    }
     const cats = await SupportCategory.find({}).sort({ displayOrder: 1, createdAt: 1 }).lean();
-    res.json({ categories: cats });
+    res.json({ categories: cats, source: 'global' });
   } catch (err) {
     supportLog.error(`[support] listCategories failed: ${(err as Error).message}`);
     res.status(500).json({ message: 'Failed to load categories.' });

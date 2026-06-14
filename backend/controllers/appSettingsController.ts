@@ -19,11 +19,24 @@
 import { Request, Response } from 'express';
 import { Types } from 'mongoose';
 import AppSetting, { readSetting, type SettingKey } from '../models/AppSetting.js';
+// v1.69 — Phase 9: per-program app settings (Golden Ticket
+// cooldown, SP cost, penalty multiplier) live in
+// ProgramConfig.appSettings. The resolver walks per-program
+// first, falling back to the global AppSetting.
+import { getProgramAppSettings } from '../utils/program/appSettings.js';
 import { getAuthedUserId } from './supportCore.js';
 import { adminLog } from '../utils/http/logger.js';
 
 /** Public-safe subset returned to non-admin callers. */
 const PUBLIC_KEYS: SettingKey[] = ['goldenCooldownHours'];
+
+function batchIdFromQueryOrBody(req: Request): string | null {
+  const q = req.query.batchId;
+  if (typeof q === 'string' && q.length > 0) return q;
+  const b = (req.body as { batchId?: string } | undefined)?.batchId;
+  if (typeof b === 'string' && b.length > 0) return b;
+  return null;
+}
 
 function adminOnly(req: Request, res: Response): { userId: Types.ObjectId } | null {
   const userId = getAuthedUserId(req);
@@ -38,17 +51,30 @@ function adminOnly(req: Request, res: Response): { userId: Types.ObjectId } | nu
 
 /**
  * GET /api/admin/settings
- * Returns the full settings object for the admin UI to render.
+ * v1.69 — Phase 9: per-program scoped. When ?batchId=... is
+ * supplied, the response is the per-program override merged
+ * with the global AppSetting defaults. When null, returns the
+ * global singleton.
  */
-export async function adminGetSettings(_req: Request, res: Response): Promise<void> {
+export async function adminGetSettings(req: Request, res: Response): Promise<void> {
   try {
+    const batchIdRaw = batchIdFromQueryOrBody(req);
+    if (batchIdRaw) {
+      if (!Types.ObjectId.isValid(batchIdRaw)) {
+        res.status(400).json({ message: 'Invalid batchId.' });
+        return;
+      }
+      const settings = await getProgramAppSettings(batchIdRaw);
+      res.json({ settings, batchId: batchIdRaw, source: 'program-or-global' });
+      return;
+    }
     let doc = await AppSetting.findById('singleton').lean();
     if (!doc) {
       // First-time seed — let the schema defaults populate the doc.
       await AppSetting.create({ _id: 'singleton' });
       doc = await AppSetting.findById('singleton').lean();
     }
-    res.json({ settings: doc?.settings ?? {} });
+    res.json({ settings: doc?.settings ?? {}, source: 'global' });
   } catch (err) {
     adminLog.error(`[appSettings] adminGetSettings failed: ${(err as Error).message}`);
     res.status(500).json({ message: 'Failed to load settings.' });
@@ -106,18 +132,24 @@ export async function adminUpdateSetting(req: Request, res: Response): Promise<v
 }
 /**
  * GET /api/public/settings
- * Returns only the public-safe subset. Used by the Golden Ticket
- * page to compute the cooldown countdown copy without exposing the
- * penalty multiplier (which the server applies, the UI never needs
- * to show).
+ * v1.69 — Phase 9: per-program scoped. When ?batchId=... is
+ * supplied, the resolver walks the per-program ProgramConfig
+ * first, falling back to the global AppSetting singleton. The
+ * public-safe subset is returned.
  */
-export async function publicGetSettings(_req: Request, res: Response): Promise<void> {
+export async function publicGetSettings(req: Request, res: Response): Promise<void> {
   try {
+    const batchIdRaw = batchIdFromQueryOrBody(req);
     const out: Record<string, unknown> = {};
     for (const k of PUBLIC_KEYS) {
-      // readSetting handles missing doc / missing field gracefully.
       if (k === 'goldenCooldownHours') {
-        out[k] = await readSetting('goldenCooldownHours', 48);
+        const fallback = await readSetting('goldenCooldownHours', 48);
+        if (batchIdRaw && Types.ObjectId.isValid(batchIdRaw)) {
+          const perProgram = await getProgramAppSettings(batchIdRaw);
+          out[k] = perProgram.goldenCooldownHours ?? fallback;
+        } else {
+          out[k] = fallback;
+        }
       }
     }
     res.json({ settings: out });
