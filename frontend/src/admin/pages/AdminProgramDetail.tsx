@@ -28,6 +28,9 @@ import adminApi from '../utils/adminApi';
 import ProgramFeatureFlagsTab from '../components/program/ProgramFeatureFlagsTab';
 // v1.69 — Phase 9 admin UI: per-program support category CRUD widget.
 import ProgramSupportCategoriesTab from '../components/program/ProgramSupportCategoriesTab';
+// v1.69 — Phase 9 admin UI: per-program app settings widget
+// (Golden Ticket cooldown / SP cost / penalty multiplier).
+import ProgramAppSettingsTab from '../components/program/ProgramAppSettingsTab';
 
 type Tab = 'overview' | 'settings' | 'courses' | 'members' | 'ai' | 'zoom' | 'discord' | 'features' | 'support' | 'appSettings';
 
@@ -365,23 +368,10 @@ function DiscordTab({ programId: _programId }: { programId: string }) {
 }
 
 function AppSettingsTab({ programId }: { programId: string }) {
-  // v1.69 — Phase 9 admin UI: per-program app settings.
-  // Stub for now — the resolver + admin endpoint landed in
-  // Phase 9; the full admin UI is a follow-up. For now the
-  // tab shows the programmatic API hint.
-  return (
-    <div className="rounded-2xl border border-border/60 bg-card/40 p-6 space-y-3">
-      <p className="text-sm text-ink-soft">
-        Per-program app settings (Golden Ticket cooldown / SP
-        cost / penalty multiplier). Use the programmatic API for
-        now; the admin UI is a follow-up.
-      </p>
-      <code className="block text-[11px] bg-mist rounded-md p-2 text-ink-soft break-all">
-        GET  /api/admin/programs/{programId}/settings
-      </code>
-      <code className="block text-[11px] bg-mist rounded-md p-2 text-ink-soft break-all">
-        PUT  /api/admin/programs/{programId}/settings  body: {'{ key, value }'}
-      </code>
-    </div>
-  );
+  // v1.69 — Phase 9 admin UI: real interactive widget for
+  // the per-program app settings (Golden Ticket cooldown /
+  // SP cost / penalty multiplier). Calls the existing
+  // /api/admin/programs/:id/settings endpoints that were
+  // added in Phase 9+.
+  return <ProgramAppSettingsTab programId={programId} />;
 }
