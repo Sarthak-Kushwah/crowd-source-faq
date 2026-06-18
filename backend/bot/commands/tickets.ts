@@ -2,10 +2,15 @@
  * bot/commands/tickets.ts — /tickets [status]
  *
  * Admin. Lists support tickets. Calls
- *   GET {PUBLIC_URL}/api/admin/support/requests?status=...&batchId=...
- * with the X-Internal-API-Key header. Default status is
- * 'open'. The batchId is threaded through (Phase 6+) so
- * each per-program bot only lists its own tickets.
+ *   GET {PUBLIC_URL}/api/support/requests?status=...&limit=...&batchId=...
+ * (note: the support routes are mounted at /api/support, NOT
+ * /api/admin/support — the bot originally called the wrong path and
+ * got 404s; v1.69 Phase 0 fixed the URL). The internal API key in
+ * the header lets us bypass the JWT requirement on this protect-guarded
+ * route.
+ *
+ * The batchId is threaded through (Phase 6+) so each per-program bot
+ * only lists its own tickets.
  */
 
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
@@ -78,10 +83,10 @@ export async function executeTickets(
 
   let tickets: SupportTicket[] = [];
   try {
-    const basePath = `/api/admin/support/requests?status=${encodeURIComponent(status)}&limit=${limit}`;
+    const basePath = `/api/support/requests?status=${encodeURIComponent(status)}&limit=${limit}`;
     const res = await fetch(
       buildBotApiUrl(config, basePath, batchId),
-      { headers: { 'X-Internal-API-Key': config.internalApiKey, ...botApiHeaders(config, batchId) } }
+      { headers: { 'X-Internal-Api-Key': config.internalApiKey ?? '', ...botApiHeaders(config, batchId) } }
     );
     if (res.ok) {
       const data = await res.json() as { requests?: SupportTicket[] };

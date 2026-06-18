@@ -2,10 +2,16 @@
  * bot/commands/ban.ts — /ban <user_id_or_email> <reason>
  *
  * Admin. Calls POST
- *   {PUBLIC_URL}/api/admin/users/ban?batchId=...
- * (Phase 6+) with the X-Internal-API-Key header. The
- * batchId is threaded through so each per-program bot
- * only bans users in its own program.
+ *   {PUBLIC_URL}/api/moderation/ban?batchId=...
+ * (note: the moderation routes are mounted at /api/moderation, NOT
+ * /api/admin/users — the bot originally called the wrong path and got
+ * 404s; v1.69 Phase 0 fixed the URL). The internal API key bypasses
+ * the adminOnly middleware.
+ *
+ * The batchId is threaded through so each per-program bot only bans
+ * users in its own program (when the moderation controller respects
+ * batchId — currently it does global moderation, but the param is
+ * passed for forward compat).
  */
 
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
@@ -57,10 +63,10 @@ export async function executeBan(
 
   try {
     const res = await fetch(
-      buildBotApiUrl(config, '/api/admin/users/ban', batchId),
+      buildBotApiUrl(config, '/api/moderation/ban', batchId),
       {
         method: 'POST',
-        headers: { 'X-Internal-API-Key': config.internalApiKey, 'Content-Type': 'application/json', ...botApiHeaders(config, batchId) },
+        headers: { 'X-Internal-Api-Key': config.internalApiKey ?? '', 'Content-Type': 'application/json', ...botApiHeaders(config, batchId) },
         body: JSON.stringify({ target, reason, bannedBy: interaction.user.tag }),
       }
     );

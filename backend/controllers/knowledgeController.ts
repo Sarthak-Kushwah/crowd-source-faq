@@ -144,8 +144,15 @@ export const answerFromKnowledgeController = async (req: Request, res: Response)
 export const askAIController = async (req: Request, res: Response): Promise<void> => {
   try {
     // For multipart requests, the question is a form field; for JSON, it's in body.
-    const body = (req.body ?? {}) as { question?: string };
-    const question = String(body.question ?? '').trim();
+    // Accept the question from any of these (precedence order):
+    //   body.question    — frontend AskAIButton uses this
+    //   body.query       — Discord /ask bot (and a few test clients) use this
+    //   ?q= / ?query=    — URL fallback for browser address bar / curl / proxies
+    // Body wins over URL when both are present.
+    const body = (req.body ?? {}) as { question?: string; query?: string };
+    const fromBody = String(body.question ?? body.query ?? '').trim();
+    const fromUrl = String(req.query.q ?? req.query.query ?? '').trim();
+    const question = fromBody || fromUrl;
     if (question.length < 3) {
       res.status(400).json({ message: 'Question must be at least 3 characters' });
       return;

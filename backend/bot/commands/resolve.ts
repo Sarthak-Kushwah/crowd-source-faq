@@ -2,13 +2,19 @@
  * bot/commands/resolve.ts — /resolve <ticket_id> <note>
  *
  * Admin. Calls PATCH
- *   {PUBLIC_URL}/api/admin/support/requests/:id?batchId=...
- * to mark a support ticket resolved. The note goes into
- * the resolution. Triggers a notification-channel post.
+ *   {PUBLIC_URL}/api/support/requests/:id/status?batchId=...
+ * (note: the support PATCH route is at /api/support/requests/:id/status,
+ * NOT /api/admin/support/requests/:id — the bot originally called the
+ * wrong path and got 404s; v1.69 Phase 0 fixed the URL).
  *
- * v1.69 — Phase 6+ per-guild → batchId routing. The
- * batchId is threaded through so each per-program bot
- * only resolves tickets from its own program.
+ * The internal API key bypasses the protect+authorize JWT chain on
+ * this route so the bot doesn't need a service-account JWT.
+ *
+ * Triggers a notification-channel post via the controller.
+ *
+ * v1.69 — Phase 6+ per-guild → batchId routing. The batchId is
+ * threaded through so each per-program bot only resolves tickets
+ * from its own program.
  */
 
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
@@ -60,10 +66,10 @@ export async function executeResolve(
 
   try {
     const res = await fetch(
-      buildBotApiUrl(config, `/api/admin/support/requests/${encodeURIComponent(ticketId)}`, batchId),
+      buildBotApiUrl(config, `/api/support/requests/${encodeURIComponent(ticketId)}/status`, batchId),
       {
         method: 'PATCH',
-        headers: { 'X-Internal-API-Key': config.internalApiKey, 'Content-Type': 'application/json', ...botApiHeaders(config, batchId) },
+        headers: { 'X-Internal-Api-Key': config.internalApiKey ?? '', 'Content-Type': 'application/json', ...botApiHeaders(config, batchId) },
         body: JSON.stringify({ status: 'resolved', resolutionNote: note, resolvedBy: interaction.user.tag }),
       }
     );
