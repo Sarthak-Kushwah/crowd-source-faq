@@ -68,17 +68,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate Docker Hub credentials
-        shell: bash
-        run: |
-          if [ -z "$DOCKER_USERNAME" ] || [ -z "$DOCKER_PASSWORD" ]; then
-            echo "Missing Docker Hub credentials. Create DOCKER_USERNAME and DOCKER_PASSWORD, or DOCKERHUB_USERNAME and DOCKERHUB_TOKEN."
-            exit 1
-          fi
-        env:
-          DOCKER_USERNAME: ${{ env.DOCKER_USERNAME }}
-          DOCKER_PASSWORD: ${{ env.DOCKER_PASSWORD }}
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
