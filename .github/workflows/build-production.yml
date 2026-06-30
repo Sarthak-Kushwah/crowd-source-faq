@@ -7,8 +7,10 @@
 #    • Manual workflow_dispatch with build/deploy toggles
 #
 #  Required GitHub Secrets (configured per-environment or globally):
-#    DOCKERHUB_USERNAME   — Docker Hub account username
-#    DOCKERHUB_TOKEN      — Docker Hub access token
+#    DOCKER_USERNAME      — Docker Hub account username (preferred)
+#    DOCKER_PASSWORD      — Docker Hub access token (preferred)
+#    DOCKERHUB_USERNAME   — Backward-compatible Docker Hub username fallback
+#    DOCKERHUB_TOKEN      — Backward-compatible Docker Hub token fallback
 #    PROD_SSH_HOST        — Production VPS hostname / IP
 #    PROD_SSH_USER        — SSH username on production VPS
 #    PROD_SSH_KEY         — SSH private key for production VPS
@@ -49,6 +51,8 @@ env:
   BACKEND_IMAGE: csfaq-backend
   INFISICAL_ENVIRONMENT: production
   INFISICAL_SECRET_PATH: /
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME || secrets.DOCKERHUB_USERNAME }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD || secrets.DOCKERHUB_TOKEN }}
 
 jobs:
   # ── Build & Push Docker Images ─────────────────────────────────────────────
@@ -64,21 +68,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate Docker Hub credentials
+        shell: bash
+        run: |
+          if [ -z "$DOCKER_USERNAME" ] || [ -z "$DOCKER_PASSWORD" ]; then
+            echo "Missing Docker Hub credentials. Create DOCKER_USERNAME and DOCKER_PASSWORD, or DOCKERHUB_USERNAME and DOCKERHUB_TOKEN."
+            exit 1
+          fi
+        env:
+          DOCKER_USERNAME: ${{ env.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ env.DOCKER_PASSWORD }}
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
 
       - name: Generate image tags
         id: tags
+        env:
+          DOCKER_USERNAME: ${{ env.DOCKER_USERNAME }}
         run: |
           SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-7)
           echo "sha_short=$SHA_SHORT" >> "$GITHUB_OUTPUT"
-          echo "backend_tags=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:latest,${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:prod-$SHA_SHORT" >> "$GITHUB_OUTPUT"
+          echo "backend_tags=${DOCKER_USERNAME}/${{ env.BACKEND_IMAGE }}:latest,${DOCKER_USERNAME}/${{ env.BACKEND_IMAGE }}:prod-$SHA_SHORT" >> "$GITHUB_OUTPUT"
 
       - name: Build & Push Unified Image
         uses: docker/build-push-action@v5
@@ -122,20 +139,23 @@ jobs:
           script: |
             set -e
 
-            echo "📦 Pulling latest production unified image..."
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:latest
-
-            echo "🚀 Deploying with docker-compose..."
             cd ~/yaksha-faq || cd /opt/yaksha-faq
 
+            echo "🔐 Logging in to Docker Hub on the production host..."
+            echo "${{ env.DOCKER_PASSWORD }}" | docker login -u "${{ env.DOCKER_USERNAME }}" --password-stdin
+
+            echo "📦 Pulling latest production unified image..."
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull backend
+
+            echo "🚀 Deploying with docker-compose..."
             export TAG=latest
-            export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+            export DOCKERHUB_USERNAME=${{ env.DOCKER_USERNAME }}
             export INFISICAL_TOKEN="${{ secrets.INFISICAL_TOKEN }}"
             export INFISICAL_ENVIRONMENT=${{ env.INFISICAL_ENVIRONMENT }}
             export INFISICAL_PROJECT_ID="${{ secrets.INFISICAL_PROJECT_ID }}"
             export INFISICAL_SECRET_PATH=${{ env.INFISICAL_SECRET_PATH }}
 
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build
 
             echo "🏥 Waiting for health check..."
             sleep 10
